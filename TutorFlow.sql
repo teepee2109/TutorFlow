@@ -1,13 +1,24 @@
 /* =====================================================================
-   PROJECT   : EduCenterManagement (Hệ thống quản lý Trung tâm học tập)
+   PROJECT   : TutorFlow  (đổi tên từ EduCenterManagement)
    PLATFORM  : SQL Server (tương thích .NET 8 / EF Core)
    MÔ TẢ     : Database cho 5 vai trò - Admin, Grand Manager,
-               Facility Manager, Lecturer, Student
+                Facility Manager, Lecturer, Student
+
+   CHANGELOG (so với EduCenterManagement):
+   ① Đổi tên database → TutorFlow
+   ② ClassSessions: thêm UNIQUE FILTERED (RoomId, ShiftId, SessionDate)
+      WHERE Status <> 'Cancelled'  → chống 2 lớp dùng cùng phòng, cùng ca, cùng ngày
+   ③ Trigger trg_PreventLecturerConflict: giảng viên không thể dạy 2 lớp
+      cùng ca, cùng ngày (kể cả 2 cơ sở khác nhau)
+   ④ Trigger trg_PreventStudentScheduleConflict: học viên không thể
+      ghi danh 2 lớp trùng giờ
+   ⑤ Trigger trg_PreventClosedRoom: phòng Condition = 'Closed' không được
+      xếp vào ClassSessions
    ===================================================================== */
 
-/*CREATE DATABASE EduCenterManagement;
-GO*/
-USE EduCenterManagement;
+CREATE DATABASE TutorFlow;
+GO
+USE TutorFlow;
 GO
 
 /* =====================================================================
@@ -117,8 +128,86 @@ CREATE TABLE ClassSessions (
     CONSTRAINT FK_Sessions_Classes FOREIGN KEY (ClassId) REFERENCES Classes(ClassId),
     CONSTRAINT FK_Sessions_Rooms   FOREIGN KEY (RoomId)  REFERENCES Rooms(RoomId),
     CONSTRAINT FK_Sessions_Shifts  FOREIGN KEY (ShiftId) REFERENCES Shifts(ShiftId),
+    -- ① Mỗi lớp chỉ có 1 buổi mỗi ngày
     CONSTRAINT UQ_Session UNIQUE (ClassId, SessionDate)
 );
+GO
+
+/* =====================================================================
+   FIX ①: Chống phòng bị đặt trùng ca / ngày
+   Dùng UNIQUE FILTERED INDEX (loại trừ buổi đã Cancelled).
+   SQL Server không hỗ trợ FILTERED UNIQUE CONSTRAINT trực tiếp nên
+   dùng CREATE UNIQUE INDEX ... WHERE.
+   ===================================================================== */
+CREATE UNIQUE INDEX UX_Sessions_Room_Shift_Date
+    ON ClassSessions (RoomId, ShiftId, SessionDate)
+    WHERE Status <> 'Cancelled';
+GO
+
+/* =====================================================================
+   FIX ②: Chống giảng viên dạy 2 lớp cùng ca, cùng ngày
+   (bao gồm 2 cơ sở khác nhau)
+   Trigger thực thi khi INSERT hoặc UPDATE ClassSessions.
+   ===================================================================== */
+GO
+CREATE OR ALTER TRIGGER trg_PreventLecturerConflict
+ON ClassSessions
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Chỉ kiểm tra các row không bị Cancelled
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        JOIN Classes c ON c.ClassId = i.ClassId
+        JOIN ClassSessions cs ON cs.SessionDate = i.SessionDate
+                              AND cs.ShiftId     = i.ShiftId
+                              AND cs.SessionId  <> i.SessionId
+                              AND cs.Status     <> 'Cancelled'
+        JOIN Classes c2 ON c2.ClassId = cs.ClassId
+                        AND c2.LecturerId = c.LecturerId
+        WHERE i.Status <> 'Cancelled'
+    )
+    BEGIN
+        RAISERROR (
+            N'CONFLICT_LECTURER: Giảng viên đã có lịch dạy lớp khác trong cùng ca và ngày này.',
+            16, 1
+        );
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+END;
+GO
+
+/* =====================================================================
+   FIX ③: Chống phòng Condition = 'Closed' được xếp lịch
+   Trigger thực thi khi INSERT hoặc UPDATE ClassSessions.
+   ===================================================================== */
+CREATE OR ALTER TRIGGER trg_PreventClosedRoom
+ON ClassSessions
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        JOIN Rooms r ON r.RoomId = i.RoomId
+        WHERE r.Condition = 'Closed'
+          AND i.Status    <> 'Cancelled'
+    )
+    BEGIN
+        RAISERROR (
+            N'ROOM_CLOSED: Phòng đang đóng cửa (Closed), không thể xếp lịch.',
+            16, 1
+        );
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+END;
 GO
 
 /* =====================================================================
@@ -136,6 +225,97 @@ CREATE TABLE Enrollments (
     CONSTRAINT FK_Enrollments_Classes  FOREIGN KEY (ClassId)   REFERENCES Classes(ClassId),
     CONSTRAINT UQ_Enrollment UNIQUE (StudentId, ClassId)
 );
+GO
+
+/* =====================================================================
+   FIX ④: Chống học viên ghi danh 2 lớp trùng lịch
+   Khi học viên enroll vào lớp mới, kiểm tra xem lớp đó có buổi học
+   (Shift + các ngày trong tuần) giao với bất kỳ lớp đang Active nào
+   mà học viên đó đã đăng ký không.
+
+   Logic đơn giản hoá: so sánh ShiftId và DaysOfWeek overlap trong
+   khoảng StartDate - EndDate của 2 lớp.
+   (Nếu muốn kiểm tra chính xác từng SessionDate, dùng trigger trên
+    bảng Attendance hoặc stored procedure khi tạo Sessions.)
+   ===================================================================== */
+CREATE OR ALTER TRIGGER trg_PreventStudentScheduleConflict
+ON Enrollments
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Chỉ xét enrollment đang Active
+    IF NOT EXISTS (SELECT 1 FROM inserted WHERE Status = 'Active')
+        RETURN;
+
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        -- Lớp mới vừa đăng ký
+        JOIN Classes newCls ON newCls.ClassId = i.ClassId
+        -- Lớp đã đang học (Active, khác lớp hiện tại)
+        JOIN Enrollments e   ON e.StudentId = i.StudentId
+                             AND e.ClassId  <> i.ClassId
+                             AND e.Status    = 'Active'
+        JOIN Classes oldCls ON oldCls.ClassId = e.ClassId
+                            AND oldCls.Status  = 'Active'
+        -- Cùng ca học
+        WHERE newCls.ShiftId = oldCls.ShiftId
+          AND i.Status = 'Active'
+          -- Khoảng thời gian 2 lớp chồng lên nhau
+          AND newCls.StartDate <= ISNULL(oldCls.EndDate,  '9999-12-31')
+          AND oldCls.StartDate <= ISNULL(newCls.EndDate,  '9999-12-31')
+          -- Các ngày trong tuần có giao nhau
+          -- DaysOfWeek dạng "2,4,6"; dùng hàm so sánh chuỗi thô
+          -- (Chính xác hơn: kiểm tra từng ký tự ngày)
+          AND EXISTS (
+              SELECT 1 FROM (VALUES (2),(3),(4),(5),(6),(7),(8)) d(dow)
+              WHERE CHARINDEX(CAST(d.dow AS NVARCHAR),  newCls.DaysOfWeek) > 0
+                AND CHARINDEX(CAST(d.dow AS NVARCHAR),  oldCls.DaysOfWeek) > 0
+          )
+    )
+    BEGIN
+        RAISERROR (
+            N'CONFLICT_STUDENT: Học viên đã có lớp học trùng ca và ngày trong tuần.',
+            16, 1
+        );
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+END;
+GO
+
+/* =====================================================================
+   Cũng kiểm tra khi Phòng chuyển sang Closed mà vẫn còn lịch sắp tới
+   ===================================================================== */
+CREATE OR ALTER TRIGGER trg_Room_ClosedHasFutureSession
+ON Rooms
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM inserted WHERE Condition = 'Closed')
+        RETURN;
+
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        JOIN ClassSessions cs ON cs.RoomId    = i.RoomId
+                              AND cs.Status    = 'Scheduled'
+                              AND cs.SessionDate >= CAST(GETDATE() AS DATE)
+    )
+    BEGIN
+        RAISERROR (
+            N'ROOM_HAS_SCHEDULE: Phòng này vẫn còn buổi học sắp tới (Scheduled). '
+            N'Hãy hủy hoặc dời lịch các buổi đó trước khi đóng phòng.',
+            16, 1
+        );
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+END;
 GO
 
 CREATE TABLE Attendance (
@@ -240,7 +420,7 @@ CREATE INDEX IX_Users_RoleId            ON Users(RoleId);
 CREATE INDEX IX_Classes_LecturerId      ON Classes(LecturerId);
 CREATE INDEX IX_Classes_RoomShift       ON Classes(RoomId, ShiftId);
 CREATE INDEX IX_Sessions_ClassDate      ON ClassSessions(ClassId, SessionDate);
-CREATE INDEX IX_Sessions_RoomShiftDate  ON ClassSessions(RoomId, ShiftId, SessionDate);
+-- IX_Sessions_RoomShiftDate đã được thay bằng UX_Sessions_Room_Shift_Date (UNIQUE FILTERED) ở trên
 CREATE INDEX IX_Attendance_StudentId    ON Attendance(StudentId);
 CREATE INDEX IX_Enrollments_ClassId     ON Enrollments(ClassId);
 CREATE INDEX IX_Tuitions_StudentStatus  ON Tuitions(StudentId, PaymentStatus);
@@ -297,5 +477,5 @@ GO
 
 -- Admin mặc định (mật khẩu cần hash lại khi code, đây chỉ là placeholder)
 INSERT INTO Users (FullName, Email, PasswordHash, RoleId, IsActive) VALUES
-(N'System Admin', 'admin@educenter.local', 'CHANGE_ME_HASH', 1, 1);
+(N'System Admin', 'admin@tutorflow.local', 'CHANGE_ME_HASH', 1, 1);
 GO

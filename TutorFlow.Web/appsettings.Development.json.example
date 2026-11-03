@@ -1,0 +1,22 @@
+{
+  "DetailedErrors": true,
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    // 1. Dành cho máy cài SQL Server Express:
+    "DefaultConnection": "Server=.\\SQLEXPRESS;Database=TutorFlow;Trusted_Connection=True;TrustServerCertificate=True"
+
+    // 2. Dành cho máy cài SQL Server bản Standard / Developer / Docker (mặc định):
+    // "DefaultConnection": "Server=localhost;Database=TutorFlow;Trusted_Connection=True;TrustServerCertificate=True"
+
+    // 3. Dành cho máy dùng LocalDB (đi kèm Visual Studio):
+    // "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=TutorFlow;Trusted_Connection=True;TrustServerCertificate=True"
+
+    // 4. Dành cho Docker SQL Server hoặc tài khoản sa:
+    // "DefaultConnection": "Server=localhost,1433;Database=TutorFlow;User Id=sa;Password=YourPassword123;TrustServerCertificate=True"
+  }
+}

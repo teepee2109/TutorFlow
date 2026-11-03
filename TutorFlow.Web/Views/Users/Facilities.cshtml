@@ -1,0 +1,79 @@
+@model TutorFlow.Web.Models.FacilitiesViewModel
+@{
+    ViewData["Title"] = "Phân công Cơ sở cho Facility Manager";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold">🏢 Phân công Cơ sở cho Facility Manager</h2>
+        <p class="text-muted mb-0">Theo quy tắc BR-11: Mỗi Facility Manager phụ trách tối đa 1 cơ sở.</p>
+    </div>
+    <a asp-controller="Users" asp-action="Index" class="btn btn-outline-secondary">⬅️ Danh sách người dùng</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4">
+    @foreach (var fac in Model.FacilitiesList)
+    {
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold">@fac.FacilityName</h5>
+                    <span class="badge bg-primary">@fac.RoomCount phòng</span>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <p class="text-muted small mb-3">📍 @(fac.Address ?? "Chưa cập nhật địa chỉ")</p>
+                        <div class="p-3 bg-light rounded mb-3">
+                            <div class="small text-muted mb-1">Người phụ trách hiện tại:</div>
+                            @if (fac.ManagerId.HasValue)
+                            {
+                                <div class="fw-bold text-success fs-5">👤 @fac.ManagerName</div>
+                                <div class="small text-muted">@fac.ManagerEmail</div>
+                            }
+                            else
+                            {
+                                <div class="text-danger fw-bold">⚠️ Chưa có người phụ trách</div>
+                            }
+                        </div>
+                    </div>
+
+                    <form method="post" asp-controller="Users" asp-action="AssignFacility" class="border-top pt-3">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="facilityId" value="@fac.FacilityId" />
+                        <label class="form-label small fw-bold">Thay đổi người phụ trách:</label>
+                        <div class="input-group">
+                            <select name="managerId" class="form-select">
+                                <option value="">-- Chưa gán (Trống) --</option>
+                                @foreach (var fm in Model.EligibleFMs)
+                                {
+                                    var isCurrent = fm.UserId == fac.ManagerId;
+                                    var isAssignedOther = fm.AssignedFacilityId.HasValue && fm.AssignedFacilityId != fac.FacilityId;
+                                    <option value="@fm.UserId" selected="@isCurrent" disabled="@isAssignedOther">
+                                        @fm.FullName (@fm.Email) @(isAssignedOther ? $"[Đang ở {fm.AssignedFacilityName}]" : "")
+                                    </option>
+                                }
+                            </select>
+                            <button type="submit" class="btn btn-primary">Lưu</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</div>

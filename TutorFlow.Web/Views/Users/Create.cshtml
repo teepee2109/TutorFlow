@@ -1,0 +1,73 @@
+@model TutorFlow.Web.Models.UserCreateViewModel
+@{
+    ViewData["Title"] = "Thêm Tài Khoản Mới";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="fw-bold mb-1">➕ Thêm tài khoản mới</h3>
+                        <p class="text-muted mb-0">Tạo tài khoản người dùng và phân quyền vai trò (MVC)</p>
+                    </div>
+                    <a asp-controller="Users" asp-action="Index" class="btn btn-outline-secondary btn-sm">⬅️ Quay lại</a>
+                </div>
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger pb-0">
+                        <div asp-validation-summary="All" class="text-danger"></div>
+                    </div>
+                }
+
+                <form asp-controller="Users" asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label">Họ và Tên <span class="text-danger">*</span></label>
+                        <input asp-for="FullName" class="form-control" placeholder="Nguyễn Văn A" autofocus />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Email" class="form-label">Email <span class="text-danger">*</span></label>
+                            <input asp-for="Email" class="form-control" placeholder="user@tutorflow.local" />
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="PhoneNumber" class="form-label">Số điện thoại</label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="0901234567" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="RoleId" class="form-label">Vai trò hệ thống <span class="text-danger">*</span></label>
+                        <select asp-for="RoleId" asp-items="Model.RolesSelectList" class="form-select">
+                            <option value="">-- Chọn vai trò --</option>
+                        </select>
+                        <span asp-validation-for="RoleId" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Password" class="form-label">Mật khẩu khởi tạo <span class="text-danger">*</span></label>
+                        <input asp-for="Password" class="form-control" />
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                        <div class="form-text small">Mặc định là <code>Dev@12345</code>. Hệ thống sẽ tự động băm mật khẩu bằng BCrypt.</div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-controller="Users" asp-action="Index" class="btn btn-light">Hủy</a>
+                        <button type="submit" class="btn btn-primary px-4">Tạo người dùng</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

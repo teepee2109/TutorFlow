@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="TutorFlow.Data/TutorFlow.Data.csproj" />
+  <Project Path="TutorFlow.Services/TutorFlow.Services.csproj" />
+  <Project Path="TutorFlow.Tests/TutorFlow.Tests.csproj" />
+  <Project Path="TutorFlow.Web/TutorFlow.Web.csproj" />
+</Solution>

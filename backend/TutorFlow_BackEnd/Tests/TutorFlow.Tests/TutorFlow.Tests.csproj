@@ -22,9 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TutorFlow.Services\TutorFlow.Services.csproj" />
-    <ProjectReference Include="..\TutorFlow.Data\TutorFlow.Data.csproj" />
-    <ProjectReference Include="..\TutorFlow.Web\TutorFlow.Web.csproj" />
+    <ProjectReference Include="..\..\Services\TutorFlow.Services\TutorFlow.Services.csproj" />
+    <ProjectReference Include="..\..\BusinessObjects\TutorFlow.Data\TutorFlow.Data.csproj" />
+    <ProjectReference Include="..\..\..\..\frontend\TutorFlow_FrontEnd\TutorFlow_FrontEnd.csproj" />
   </ItemGroup>
 
 </Project>

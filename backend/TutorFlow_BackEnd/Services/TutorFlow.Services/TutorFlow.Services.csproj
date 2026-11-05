@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\TutorFlow.Data\TutorFlow.Data.csproj" />
+    <ProjectReference Include="..\..\BusinessObjects\TutorFlow.Data\TutorFlow.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

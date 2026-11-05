@@ -1,0 +1,4 @@
+@TutorFlow_BackEnd_HostAddress = http://localhost:7100
+
+GET {{TutorFlow_BackEnd_HostAddress}}/api/health
+Accept: application/json

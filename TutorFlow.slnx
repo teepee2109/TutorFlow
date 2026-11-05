@@ -1,6 +1,4 @@
 <Solution>
-  <Project Path="TutorFlow.Data/TutorFlow.Data.csproj" />
-  <Project Path="TutorFlow.Services/TutorFlow.Services.csproj" />
-  <Project Path="TutorFlow.Tests/TutorFlow.Tests.csproj" />
-  <Project Path="TutorFlow.Web/TutorFlow.Web.csproj" />
+  <Project Path="backend/TutorFlow_BackEnd/TutorFlow_BackEnd.csproj" />
+  <Project Path="frontend/TutorFlow_FrontEnd/TutorFlow_FrontEnd.csproj" />
 </Solution>

@@ -14,14 +14,15 @@ public class AdminController : Controller
         _apiClient = apiClient;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(DateOnly? date)
     {
-        var result = await _apiClient.GetAdminDashboardAsync();
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.Today);
+        var result = await _apiClient.GetAdminDashboardAsync(targetDate);
         if (!result.Success || result.Value == null)
         {
             ViewBag.ErrorMessage = result.Message;
         }
 
-        return View(result.Value ?? new TutorFlow.Web.Models.AdminDashboardViewModel());
+        return View(result.Value ?? new TutorFlow.Web.Models.AdminDashboardViewModel { TargetDate = targetDate });
     }
 }

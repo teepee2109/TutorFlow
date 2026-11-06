@@ -16,9 +16,10 @@ public class UsersController : Controller
         _apiClient = apiClient;
     }
 
-    public async Task<IActionResult> Index(string? roleFilter, string? search, bool? isActive, int page = 1)
+    public async Task<IActionResult> Index(string? roleFilter, string? search, bool? isActive, int? facilityId, int page = 1)
     {
-        var result = await _apiClient.GetUsersAsync(roleFilter, search, isActive, page, 10);
+        var result = await _apiClient.GetUsersAsync(roleFilter, search, isActive, page, 10, facilityId);
+        var facilityOptions = await _apiClient.GetFacilityOptionsAsync();
         if (!result.Success)
         {
             ViewBag.ErrorMessage = result.Message;
@@ -30,7 +31,11 @@ public class UsersController : Controller
             RoleFilter = roleFilter,
             Search = search,
             IsActive = isActive,
-            CurrentPage = page
+            FacilityId = facilityId,
+            CurrentPage = page,
+            FacilityOptions = (facilityOptions.Value ?? new List<FacilityOptionViewModel>())
+                .Select(f => new SelectListItem(f.FacilityName, f.FacilityId.ToString(), f.FacilityId == facilityId))
+                .ToList()
         });
     }
 
@@ -125,25 +130,25 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ToggleActive(int id, bool active, string? roleFilter, string? search, bool? isActive, int currentPage = 1)
+    public async Task<IActionResult> ToggleActive(int id, bool active, string? roleFilter, string? search, bool? isActive, int? facilityId, int currentPage = 1)
     {
         var result = await _apiClient.SetUserActiveAsync(id, active);
         SetOperationMessage(result);
-        return RedirectToAction(nameof(Index), new { roleFilter, search, isActive, page = currentPage });
+        return RedirectToAction(nameof(Index), new { roleFilter, search, isActive, facilityId, page = currentPage });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(int id, string? roleFilter, string? search, bool? isActive, int currentPage = 1)
+    public async Task<IActionResult> Delete(int id, string? roleFilter, string? search, bool? isActive, int? facilityId, int currentPage = 1)
     {
         var result = await _apiClient.DeleteUserAsync(id);
         SetOperationMessage(result);
-        return RedirectToAction(nameof(Index), new { roleFilter, search, isActive, page = currentPage });
+        return RedirectToAction(nameof(Index), new { roleFilter, search, isActive, facilityId, page = currentPage });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResetPassword(int id, string newPassword, string? roleFilter, string? search, bool? isActive, int currentPage = 1)
+    public async Task<IActionResult> ResetPassword(int id, string newPassword, string? roleFilter, string? search, bool? isActive, int? facilityId, int currentPage = 1)
     {
         if (string.IsNullOrWhiteSpace(newPassword))
         {
@@ -154,7 +159,7 @@ public class UsersController : Controller
             SetOperationMessage(await _apiClient.ResetPasswordAsync(id, newPassword));
         }
 
-        return RedirectToAction(nameof(Index), new { roleFilter, search, isActive, page = currentPage });
+        return RedirectToAction(nameof(Index), new { roleFilter, search, isActive, facilityId, page = currentPage });
     }
 
     [Authorize(Roles = "Admin")]

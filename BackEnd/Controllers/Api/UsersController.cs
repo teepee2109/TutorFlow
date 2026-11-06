@@ -27,12 +27,29 @@ public sealed class UsersController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] int? facilityId = null)
     {
-        var result = await _userService.GetUsersAsync(roleFilter, search, isActive, page, pageSize);
+        var result = await _userService.GetUsersAsync(roleFilter, search, isActive, page, pageSize, facilityId);
         return result.Success && result.Value != null
             ? Ok(ApiResponse<UserPagedResult>.Ok(result.Value))
             : BadRequest(ApiResponse<UserPagedResult>.Fail(result.Message));
+    }
+
+    [HttpGet("facility-options")]
+    public async Task<IActionResult> GetFacilityOptions()
+    {
+        var facilities = await _db.Facilities
+            .AsNoTracking()
+            .OrderBy(facility => facility.FacilityName)
+            .Select(facility => new FacilityOptionDto
+            {
+                FacilityId = facility.FacilityId,
+                FacilityName = facility.FacilityName
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<List<FacilityOptionDto>>.Ok(facilities));
     }
 
     [HttpGet("roles")]

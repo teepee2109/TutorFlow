@@ -79,6 +79,12 @@ public sealed class RoleOptionDto
     public string RoleName { get; set; } = string.Empty;
 }
 
+public sealed class FacilityOptionViewModel
+{
+    public int FacilityId { get; set; }
+    public string FacilityName { get; set; } = string.Empty;
+}
+
 public sealed class FacilityItemViewModel
 {
     public int FacilityId { get; set; }
@@ -98,6 +104,9 @@ public sealed class FacilitiesDataDto
 
 public sealed class AdminDashboardViewModel
 {
+    public DateOnly TargetDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    public int? FacilityId { get; set; }
+    public string? FacilityName { get; set; }
     public int? TotalRooms { get; set; }
     public int? OpenRooms { get; set; }
     public int? ClosedRooms { get; set; }
@@ -106,6 +115,27 @@ public sealed class AdminDashboardViewModel
     public int? ActiveStudents { get; set; }
     public int? PendingChangeRequests { get; set; }
     public decimal TotalUnpaidTuition { get; set; }
+    public List<RoomShiftStatusViewModel> RoomShiftStatuses { get; set; } = new();
+}
+
+public sealed class RoomShiftStatusViewModel
+{
+    public int FacilityId { get; set; }
+    public string FacilityName { get; set; } = string.Empty;
+    public int RoomId { get; set; }
+    public string RoomNumber { get; set; } = string.Empty;
+    public int? Capacity { get; set; }
+    public string RoomCondition { get; set; } = string.Empty;
+    public int ShiftId { get; set; }
+    public string ShiftName { get; set; } = string.Empty;
+    public TimeOnly StartTime { get; set; }
+    public TimeOnly EndTime { get; set; }
+    public string SlotStatus { get; set; } = string.Empty;
+    public int? ClassId { get; set; }
+    public string? ClassName { get; set; }
+    public int? LecturerId { get; set; }
+    public string? LecturerName { get; set; }
+    public int? SessionId { get; set; }
 }
 
 public class UserListViewModel
@@ -114,7 +144,9 @@ public class UserListViewModel
     public string? RoleFilter { get; set; }
     public string? Search { get; set; }
     public bool? IsActive { get; set; }
+    public int? FacilityId { get; set; }
     public int CurrentPage { get; set; } = 1;
+    public List<SelectListItem> FacilityOptions { get; set; } = new();
 }
 
 public class UserCreateViewModel

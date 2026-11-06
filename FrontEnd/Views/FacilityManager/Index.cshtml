@@ -1,63 +1,82 @@
+@model TutorFlow.Web.Models.AdminDashboardViewModel
 @inject ICurrentUser CurrentUser
 @{
     ViewData["Title"] = "Facility Manager Dashboard";
-    var facilityId = ViewData["FacilityId"];
+    var facilityId = Model.FacilityId ?? CurrentUser.FacilityId;
 }
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">📊 Dashboard Facility Manager</h2>
+        <p class="text-muted mb-0">
+            Xin chào, <strong>@CurrentUser.FullName</strong> —
+            @(Model.FacilityName ?? (facilityId.HasValue ? $"Cơ sở {facilityId}" : "Chưa được gán cơ sở"))
+        </p>
+    </div>
+    <form method="get" asp-controller="FacilityManager" asp-action="Index" class="d-flex align-items-end gap-2">
         <div>
-            <h4 class="mb-1"><i class="bi bi-building me-2 text-info"></i>Facility Manager Dashboard</h4>
-            <p class="text-muted mb-0">
-                Xin chào, <strong>@CurrentUser.FullName</strong> —
-                Phụ trách
-                @if (facilityId != null)
-                {
-                    <span class="badge bg-info text-dark">Cơ sở @facilityId</span>
-                }
-                else
-                {
-                    <span class="text-danger">(Chưa được gán cơ sở)</span>
-                }
-            </p>
+            <label class="form-label small text-muted mb-1" for="dashboardDate">Ngày xem sơ đồ phòng</label>
+            <input id="dashboardDate" type="date" name="date" value="@Model.TargetDate.ToString("yyyy-MM-dd")" class="form-control" />
         </div>
-    </div>
+        <button type="submit" class="btn btn-outline-primary">Xem ngày</button>
+    </form>
+</div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card border-info shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="fs-1">🏢</div>
-                    <h6 class="card-title text-info mt-1">Quản lý phòng</h6>
-                    <p class="text-muted small">Xem lưới phòng trống / đang dùng / đóng bảo trì</p>
-                    <a asp-controller="Rooms" asp-action="Index" class="btn btn-sm btn-outline-info w-100">Xem sơ đồ phòng</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-info shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="fs-1">📋</div>
-                    <h6 class="card-title text-info mt-1">Duyệt đổi phòng/ca</h6>
-                    <p class="text-muted small">Xét duyệt yêu cầu của giảng viên tại cơ sở</p>
-                    <a asp-controller="ChangeRequests" asp-action="Index" class="btn btn-sm btn-outline-info w-100">Xem yêu cầu</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-info shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="fs-1">👤</div>
-                    <h6 class="card-title text-info mt-1">Điểm danh</h6>
-                    <p class="text-muted small">Theo dõi điểm danh tại cơ sở</p>
-                    <a asp-controller="Attendance" asp-action="Index" class="btn btn-sm btn-outline-info w-100">Xem điểm danh</a>
+@if (ViewBag.ErrorMessage != null)
+{
+    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-primary text-white h-100">
+            <div class="card-body">
+                <div class="text-uppercase small opacity-75">Cơ sở vật chất</div>
+                <div class="display-6 fw-bold">@(Model.TotalRooms ?? 0) <span class="fs-6 fw-normal">phòng</span></div>
+                <div class="d-flex justify-content-between border-top border-white-50 pt-2 small">
+                    <span>Đang mở: @(Model.OpenRooms ?? 0)</span><span>Đóng: @(Model.ClosedRooms ?? 0)</span>
                 </div>
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-success text-white h-100">
+            <div class="card-body">
+                <div class="text-uppercase small opacity-75">Quy mô đào tạo</div>
+                <div class="display-6 fw-bold">@(Model.ActiveClasses ?? 0) <span class="fs-6 fw-normal">lớp đang mở</span></div>
+                <div class="d-flex justify-content-between border-top border-white-50 pt-2 small">
+                    <span>Giảng viên: @(Model.ActiveLecturers ?? 0)</span><span>Học viên: @(Model.ActiveStudents ?? 0)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-warning text-dark h-100">
+            <div class="card-body">
+                <div class="text-uppercase small opacity-75">Vận hành và tài chính</div>
+                <div class="display-6 fw-bold">@(Model.PendingChangeRequests ?? 0) <span class="fs-6 fw-normal">yêu cầu chờ duyệt</span></div>
+                <div class="border-top border-dark-50 pt-2 small">Học phí chưa thu: <strong>@Model.TotalUnpaidTuition.ToString("N0") VNĐ</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <div class="alert alert-info">
-        <i class="bi bi-hammer me-2"></i>
-        <strong>Dev A đang hoàn thiện.</strong> Số liệu thống kê cơ sở (phòng trống, lớp đang dạy, doanh thu...) sẽ hiện ở đây.
+<partial name="_RoomShiftStatusTable" model="Model" />
+
+<div class="row g-3 mt-2">
+    <div class="col-md-4">
+        <a asp-controller="Rooms" asp-action="Index" class="card card-body text-decoration-none h-100">
+            <strong>🏢 Quản lý phòng</strong><span class="small text-muted">Xem phòng trống, đang dùng và đóng bảo trì</span>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a asp-controller="ChangeRequests" asp-action="Index" class="card card-body text-decoration-none h-100">
+            <strong>📋 Duyệt đổi phòng/ca</strong><span class="small text-muted">Xét yêu cầu tại cơ sở</span>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a asp-controller="Attendance" asp-action="Index" class="card card-body text-decoration-none h-100">
+            <strong>👤 Điểm danh</strong><span class="small text-muted">Theo dõi điểm danh tại cơ sở</span>
+        </a>
     </div>
 </div>

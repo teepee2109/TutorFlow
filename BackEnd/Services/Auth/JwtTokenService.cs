@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-namespace TutorFlow.Services.Auth;
+namespace BackEnd.Services.Auth;
 
 public sealed class JwtTokenService : ITokenService
 {

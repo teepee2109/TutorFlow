@@ -1,0 +1,159 @@
+@model FrontEnd.Models.ClassWriteViewModel
+@{
+    var isEdit = Model.ClassId.HasValue;
+    ViewData["Title"] = isEdit ? "Chỉnh sửa lớp" : "Tạo lớp mới";
+    var actionName = isEdit ? "Edit" : "Create";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">@(isEdit ? "✏️ Chỉnh sửa lớp" : "➕ Tạo lớp mới")</h2>
+        <p class="text-muted mb-0">Hệ thống sẽ kiểm tra trùng phòng/ca và giảng viên trước khi lưu.</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+</div>
+
+@if (ViewBag.OptionsErrorMessage is string optionsError)
+{
+    <div class="alert alert-danger">Không tải được dữ liệu danh mục: @optionsError</div>
+}
+
+<div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+@if (Model.Conflicts.Count > 0)
+{
+    <div class="card border-danger mb-4">
+        <div class="card-header bg-danger text-white fw-bold">Phát hiện xung đột lịch</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Ngày</th><th>Loại</th><th>Lớp đang chiếm</th><th>Chi tiết</th></tr></thead>
+                <tbody>
+                    @foreach (var conflict in Model.Conflicts)
+                    {
+                        <tr>
+                            <td>@conflict.Date.ToString("dd/MM/yyyy")</td>
+                            <td>@conflict.ConflictType</td>
+                            <td>@(conflict.ConflictingClassName ?? "—")</td>
+                            <td>@conflict.Message</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<form method="post" asp-action="@actionName" asp-route-id="@Model.ClassId">
+    @Html.AntiForgeryToken()
+    <input asp-for="ClassId" type="hidden" />
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="ClassName" class="form-label">Tên lớp</label>
+                    <input asp-for="ClassName" class="form-control" />
+                    <span asp-validation-for="ClassName" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="SubjectId" class="form-label">Môn học</label>
+                    <select asp-for="SubjectId" class="form-select">
+                        <option value="0">-- Chọn môn --</option>
+                        @foreach (var item in Model.Options.Subjects)
+                        {
+                            <option value="@item.Id">@item.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="SubjectId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LecturerId" class="form-label">Giảng viên</label>
+                    <select asp-for="LecturerId" class="form-select">
+                        <option value="0">-- Chọn giảng viên --</option>
+                        @foreach (var item in Model.Options.Lecturers)
+                        {
+                            <option value="@item.Id">@item.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="LecturerId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="FacilityId" class="form-label">Cơ sở</label>
+                    <select asp-for="FacilityId" class="form-select" id="facilitySelect">
+                        <option value="0">-- Chọn cơ sở --</option>
+                        @foreach (var item in Model.Options.Facilities)
+                        {
+                            <option value="@item.Id">@item.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="FacilityId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="RoomId" class="form-label">Phòng mặc định</label>
+                    <select asp-for="RoomId" class="form-select" id="roomSelect">
+                        <option value="0">-- Chọn phòng --</option>
+                        @foreach (var item in Model.Options.Rooms)
+                        {
+                            <option value="@item.Id" data-facility-id="@item.FacilityId">
+                                @item.Name @(item.Capacity.HasValue ? $"({item.Capacity} chỗ)" : "")
+                            </option>
+                        }
+                    </select>
+                    <span asp-validation-for="RoomId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="ShiftId" class="form-label">Ca học</label>
+                    <select asp-for="ShiftId" class="form-select">
+                        <option value="0">-- Chọn ca --</option>
+                        @foreach (var item in Model.Options.Shifts)
+                        {
+                            <option value="@item.Id">@item.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="ShiftId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="DaysOfWeek" class="form-label">Ngày học trong tuần</label>
+                    <input asp-for="DaysOfWeek" class="form-control" placeholder="2,4,6" />
+                    <div class="form-text">2 = Thứ 2, ..., 8 = Chủ nhật. Ví dụ: 2,4,6.</div>
+                    <span asp-validation-for="DaysOfWeek" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="StartDate" class="form-label">Ngày bắt đầu</label>
+                    <input asp-for="StartDate" type="date" class="form-control" />
+                    <span asp-validation-for="StartDate" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="EndDate" class="form-label">Ngày kết thúc</label>
+                    <input asp-for="EndDate" type="date" class="form-control" />
+                    <span asp-validation-for="EndDate" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a>
+            <button type="submit" class="btn btn-primary">@(isEdit ? "Lưu thay đổi" : "Kiểm tra và tạo lớp")</button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const facility = document.getElementById('facilitySelect');
+            const rooms = document.getElementById('roomSelect');
+            const filterRooms = () => {
+                const selectedFacility = facility.value;
+                for (const option of rooms.options) {
+                    if (!option.dataset.facilityId) continue;
+                    const visible = selectedFacility !== '0' && option.dataset.facilityId === selectedFacility;
+                    option.hidden = !visible;
+                    option.disabled = !visible;
+                    if (!visible && option.selected) rooms.value = '0';
+                }
+            };
+            facility.addEventListener('change', filterRooms);
+            filterRooms();
+        })();
+    </script>
+}

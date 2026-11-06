@@ -1,15 +1,18 @@
+using FrontEnd.Services;
+using FrontEnd.Services.Api;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<TutorFlow.Web.Services.ICurrentUser, TutorFlow.Web.Services.CurrentUser>();
-builder.Services.AddTransient<TutorFlow.Web.Services.Api.BearerTokenHandler>();
-builder.Services.AddHttpClient<TutorFlow.Web.Services.Api.TutorFlowApiClient>(client =>
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddTransient<BearerTokenHandler>();
+builder.Services.AddHttpClient<TutorFlowApiClient>(client =>
 {
     var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5228/";
     client.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
-}).AddHttpMessageHandler<TutorFlow.Web.Services.Api.BearerTokenHandler>();
+}).AddHttpMessageHandler<BearerTokenHandler>();
 
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

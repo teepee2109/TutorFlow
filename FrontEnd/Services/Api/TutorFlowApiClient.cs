@@ -1,8 +1,8 @@
+using FrontEnd.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
-using TutorFlow.Web.Models;
 
-namespace TutorFlow.Web.Services.Api;
+namespace FrontEnd.Services.Api;
 
 public sealed class TutorFlowApiClient
 {
@@ -72,6 +72,44 @@ public sealed class TutorFlowApiClient
 
     public Task<ApiResponse<AdminDashboardViewModel>> GetFacilityManagerDashboardAsync(DateOnly date) =>
         SendAsync<AdminDashboardViewModel>(HttpMethod.Get, $"api/facility-manager/dashboard?date={date:yyyy-MM-dd}");
+
+    public Task<ApiResponse<List<ClassListItemViewModel>>> GetClassesAsync() =>
+        SendAsync<List<ClassListItemViewModel>>(HttpMethod.Get, "api/classes");
+
+    public Task<ApiResponse<ClassOptionsViewModel>> GetClassOptionsAsync() =>
+        SendAsync<ClassOptionsViewModel>(HttpMethod.Get, "api/classes/options");
+
+    public Task<ApiResponse<ClassDetailViewModel>> GetClassAsync(int classId) =>
+        SendAsync<ClassDetailViewModel>(HttpMethod.Get, $"api/classes/{classId}");
+
+    public Task<ApiResponse<List<ScheduleConflictViewModel>>> PreviewClassConflictsAsync(ClassWriteViewModel request, int? excludeClassId = null) =>
+        SendAsync<List<ScheduleConflictViewModel>>(HttpMethod.Post,
+            excludeClassId.HasValue ? $"api/classes/preview-conflicts?excludeClassId={excludeClassId.Value}" : "api/classes/preview-conflicts",
+            request);
+
+    public Task<ApiResponse<ClassDetailViewModel>> CreateClassAsync(ClassWriteViewModel request) =>
+        SendAsync<ClassDetailViewModel>(HttpMethod.Post, "api/classes", request);
+
+    public Task<ApiResponse<ClassDetailViewModel>> UpdateClassAsync(int classId, ClassWriteViewModel request) =>
+        SendAsync<ClassDetailViewModel>(HttpMethod.Put, $"api/classes/{classId}", request);
+
+    public Task<ApiResponse> ChangeClassLecturerAsync(int classId, int lecturerId) =>
+        SendAsync(HttpMethod.Put, $"api/classes/{classId}/lecturer", new { LecturerId = lecturerId });
+
+    public Task<ApiResponse> CloseClassAsync(int classId) =>
+        SendAsync(HttpMethod.Post, $"api/classes/{classId}/close");
+
+    public Task<ApiResponse> GenerateClassSessionsAsync(int classId) =>
+        SendAsync(HttpMethod.Post, $"api/classes/{classId}/generate-sessions");
+
+    public Task<ApiResponse> RescheduleSessionAsync(int sessionId, SessionRescheduleViewModel request) =>
+        SendAsync(HttpMethod.Put, $"api/sessions/{sessionId}/reschedule", request);
+
+    public Task<ApiResponse> CancelSessionAsync(int sessionId) =>
+        SendAsync(HttpMethod.Post, $"api/sessions/{sessionId}/cancel");
+
+    public Task<ApiResponse> AssignSessionSubstituteAsync(int sessionId, int lecturerId) =>
+        SendAsync(HttpMethod.Put, $"api/sessions/{sessionId}/substitute", new { LecturerId = lecturerId });
 
     private async Task<ApiResponse<T>> SendAsync<T>(HttpMethod method, string path, object? body = null)
     {

@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TutorFlow.Web.Services.Api;
-using TutorFlow.Web.Models;
+using FrontEnd.Models;
+using FrontEnd.Services.Api;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 public class AccountController : Controller
 {

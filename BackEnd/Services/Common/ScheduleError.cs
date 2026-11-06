@@ -1,4 +1,4 @@
-namespace TutorFlow.Services.Common;
+namespace BackEnd.Services.Common;
 
 /// <summary>
 /// Các mã lỗi nghiệp vụ chuẩn theo tài liệu FINAL_PROJECT_DOC v2.0

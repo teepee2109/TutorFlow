@@ -1,4 +1,4 @@
-namespace TutorFlow.Services.Auth;
+namespace BackEnd.Services.Auth;
 
 public class UserAuthDto
 {

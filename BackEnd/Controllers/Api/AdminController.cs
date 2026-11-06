@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BackEnd.Dtos.Api;
-using TutorFlow.Services.Dashboard;
+using BackEnd.Services.Dashboard;
+using BackEnd.Services.Common;
 
 namespace BackEnd.Controllers.Api;
 
@@ -25,7 +26,7 @@ public sealed class AdminController : ControllerBase
         if (!result.Success || result.Value == null)
         {
             var response = ApiResponse<AdminDashboardDto>.Fail(result.Message);
-            return result.Error == TutorFlow.Services.Common.ScheduleError.NotFound
+            return result.Error == ScheduleError.NotFound
                 ? NotFound(response)
                 : StatusCode(StatusCodes.Status500InternalServerError, response);
         }

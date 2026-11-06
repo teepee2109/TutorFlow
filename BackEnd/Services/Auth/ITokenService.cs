@@ -1,6 +1,4 @@
-using TutorFlow.Services.Auth;
-
-namespace TutorFlow.Services.Auth;
+namespace BackEnd.Services.Auth;
 
 public interface ITokenService
 {

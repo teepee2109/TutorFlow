@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,16 +10,45 @@ if (string.IsNullOrWhiteSpace(jwtKey) || System.Text.Encoding.UTF8.GetByteCount(
 }
 
 builder.Services.AddDbContext<BackEnd.Data.TutorFlowDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MyCNN")));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<TutorFlow.Services.Auth.IAuthService, TutorFlow.Services.Auth.AuthService>();
-builder.Services.AddScoped<TutorFlow.Services.Auth.ITokenService, TutorFlow.Services.Auth.JwtTokenService>();
-builder.Services.AddScoped<TutorFlow.Services.Users.IUserService, TutorFlow.Services.Users.UserService>();
-builder.Services.AddScoped<TutorFlow.Services.Dashboard.IAdminDashboardService, TutorFlow.Services.Dashboard.AdminDashboardService>();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Description = "Nhập JWT nhận được từ POST /api/auth/login. Dán token, không cần thêm tiền tố Bearer.",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+builder.Services.AddScoped<BackEnd.Services.Auth.IAuthService, BackEnd.Services.Auth.AuthService>();
+builder.Services.AddScoped<BackEnd.Services.Auth.ITokenService, BackEnd.Services.Auth.JwtTokenService>();
+builder.Services.AddScoped<BackEnd.Services.Users.IUserService, BackEnd.Services.Users.UserService>();
+builder.Services.AddScoped<BackEnd.Services.Dashboard.IAdminDashboardService, BackEnd.Services.Dashboard.AdminDashboardService>();
+builder.Services.AddScoped<BackEnd.Services.Classes.IClassService, BackEnd.Services.Classes.ClassService>();
+builder.Services.AddScoped<BackEnd.Services.Classes.ISessionService, BackEnd.Services.Classes.SessionService>();
+builder.Services.AddScoped<BackEnd.Services.Classes.IScheduleConflictChecker, BackEnd.Services.Classes.ScheduleConflictChecker>();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<TutorFlow.Services.Common.ICurrentUser, TutorFlow.Services.Common.CurrentUser>();
+builder.Services.AddScoped<BackEnd.Services.Common.ICurrentUser, BackEnd.Services.Common.CurrentUser>();
 
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

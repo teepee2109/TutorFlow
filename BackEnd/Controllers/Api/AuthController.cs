@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BackEnd.Dtos.Api;
-using TutorFlow.Services.Auth;
+using BackEnd.Services.Auth;
 
 namespace BackEnd.Controllers.Api;
 

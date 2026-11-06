@@ -1,4 +1,4 @@
-namespace TutorFlow.Services.Common;
+namespace BackEnd.Services.Common;
 
 /// <summary>
 /// Đại diện cho kết quả thực thi thao tác không có giá trị trả về

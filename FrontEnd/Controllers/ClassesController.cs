@@ -1,17 +1,178 @@
+using FrontEnd.Models;
+using FrontEnd.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
-/// <summary>
-/// Dev B — Quản lý lớp học và sinh buổi học (F2, F5).
-/// </summary>
-[Authorize]
-public class ClassesController : Controller
+/// <summary>FrontEnd MVC controller for the Grand Manager's class management screen.</summary>
+[Authorize(Roles = "GrandManager")]
+public sealed class ClassesController : Controller
 {
-    public IActionResult Index()
+    private readonly TutorFlowApiClient _apiClient;
+
+    public ClassesController(TutorFlowApiClient apiClient)
     {
+        _apiClient = apiClient;
+    }
+
+    public async Task<IActionResult> Index()
+    {
+        var classes = await _apiClient.GetClassesAsync();
+        var options = await _apiClient.GetClassOptionsAsync();
+        if (!classes.Success) ViewBag.ErrorMessage = classes.Message;
+        if (!options.Success) ViewBag.OptionsErrorMessage = options.Message;
+
         ViewData["Title"] = "Quản lý lớp học";
-        return View();
+        return View(new ClassesIndexViewModel
+        {
+            Classes = classes.Value ?? new List<ClassListItemViewModel>(),
+            Options = options.Value ?? new ClassOptionsViewModel()
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Create()
+    {
+        var model = new ClassWriteViewModel();
+        await LoadOptionsAsync(model);
+        return View("Form", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(ClassWriteViewModel model)
+    {
+        await LoadOptionsAsync(model);
+        if (!ModelState.IsValid) return View("Form", model);
+
+        var preview = await _apiClient.PreviewClassConflictsAsync(model);
+        if (!preview.Success)
+        {
+            ModelState.AddModelError(string.Empty, preview.Message);
+            return View("Form", model);
+        }
+        if (preview.Value is { Count: > 0 })
+        {
+            model.Conflicts = preview.Value;
+            ModelState.AddModelError(string.Empty, "Lịch có xung đột. Hãy đổi phòng, ca hoặc giảng viên trước khi lưu.");
+            return View("Form", model);
+        }
+
+        var result = await _apiClient.CreateClassAsync(model);
+        if (!result.Success)
+        {
+            ModelState.AddModelError(string.Empty, result.Message);
+            return View("Form", model);
+        }
+
+        TempData["SuccessMessage"] = $"Đã tạo lớp và sinh {result.Value?.SessionCount ?? 0} buổi học.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id)
+    {
+        var result = await _apiClient.GetClassAsync(id);
+        if (!result.Success || result.Value == null)
+        {
+            TempData["ErrorMessage"] = result.Message;
+            return RedirectToAction(nameof(Index));
+        }
+
+        var model = new ClassWriteViewModel
+        {
+            ClassId = result.Value.ClassId,
+            ClassName = result.Value.ClassName,
+            SubjectId = result.Value.SubjectId,
+            LecturerId = result.Value.LecturerId,
+            FacilityId = result.Value.FacilityId,
+            RoomId = result.Value.RoomId,
+            ShiftId = result.Value.ShiftId,
+            DaysOfWeek = result.Value.DaysOfWeek,
+            StartDate = result.Value.StartDate,
+            EndDate = result.Value.EndDate
+        };
+        await LoadOptionsAsync(model);
+        return View("Form", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, ClassWriteViewModel model)
+    {
+        model.ClassId = id;
+        await LoadOptionsAsync(model);
+        if (!ModelState.IsValid) return View("Form", model);
+
+        var preview = await _apiClient.PreviewClassConflictsAsync(model, id);
+        if (!preview.Success)
+        {
+            ModelState.AddModelError(string.Empty, preview.Message);
+            return View("Form", model);
+        }
+        if (preview.Value is { Count: > 0 })
+        {
+            model.Conflicts = preview.Value;
+            ModelState.AddModelError(string.Empty, "Lịch mới có xung đột. Hãy đổi phòng, ca hoặc giảng viên.");
+            return View("Form", model);
+        }
+
+        var result = await _apiClient.UpdateClassAsync(id, model);
+        if (!result.Success)
+        {
+            ModelState.AddModelError(string.Empty, result.Message);
+            return View("Form", model);
+        }
+
+        TempData["SuccessMessage"] = result.Message;
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(int id)
+    {
+        var result = await _apiClient.GetClassAsync(id);
+        if (!result.Success || result.Value == null)
+        {
+            TempData["ErrorMessage"] = result.Message;
+            return RedirectToAction(nameof(Index));
+        }
+        return View(result.Value);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeLecturer(int classId, int lecturerId)
+    {
+        SetMessage(await _apiClient.ChangeClassLecturerAsync(classId, lecturerId));
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Close(int classId)
+    {
+        SetMessage(await _apiClient.CloseClassAsync(classId));
+        return RedirectToAction(nameof(Index));
+    }
+
+    private async Task LoadOptionsAsync(ClassWriteViewModel model)
+    {
+        var result = await _apiClient.GetClassOptionsAsync();
+        if (result.Success && result.Value != null)
+        {
+            model.Options = result.Value;
+        }
+        else
+        {
+            ViewBag.OptionsErrorMessage = result.Message;
+            model.Options = new ClassOptionsViewModel();
+        }
+    }
+
+    private void SetMessage(ApiResponse result)
+    {
+        TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Message;
     }
 }

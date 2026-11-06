@@ -1,0 +1,36 @@
+@model FrontEnd.Models.ClassDetailViewModel
+@{
+    ViewData["Title"] = "Lịch lớp học";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">🗓️ @Model.ClassName</h2>
+        <p class="text-muted mb-0">@Model.SubjectName · @Model.FacilityName · Phòng @Model.RoomNumber · @Model.ShiftName</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Quay lại danh sách</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Ngày học</th><th>Phòng</th><th>Ca</th><th>Giảng viên</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+                @if (Model.Sessions.Count == 0)
+                {
+                    <tr><td colspan="5" class="text-center text-muted py-4">Lớp chưa có buổi học.</td></tr>
+                }
+                @foreach (var session in Model.Sessions.OrderBy(item => item.SessionDate))
+                {
+                    <tr>
+                        <td>@session.SessionDate.ToString("dd/MM/yyyy")</td>
+                        <td>@session.RoomNumber</td>
+                        <td>@session.ShiftName</td>
+                        <td>@session.LecturerName</td>
+                        <td>@session.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

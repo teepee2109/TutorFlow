@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Data.Entities;
-using TutorFlow.Services.Auth;
+using BackEnd.Services.Auth;
 
-namespace TutorFlow.Services.Common;
+namespace BackEnd.Services.Common;
 
 public class DbSeeder
 {

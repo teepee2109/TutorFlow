@@ -7,7 +7,7 @@
     <div class="container-fluid py-3">
         <h1 class="display-5 fw-bold text-primary">Chào mừng đến với TutorFlow (MVC)</h1>
         <p class="col-md-8 fs-5 text-muted">
-            Hệ thống quản lý trung tâm dạy thêm: Xếp lớp, chống trùng lịch phòng & ca học, 
+            Hệ thống quản lý trung tâm dạy thêm: Xếp lớp, chống trùng lịch phòng & ca học,
             phân công giảng viên, điểm danh buổi học và quản lý học phí chính xác.
         </p>
         @if (!CurrentUser.IsAuthenticated)
@@ -48,7 +48,7 @@
             </div>
         }
 
-        @if (CurrentUser.IsInRole("GrandManager") || CurrentUser.IsInRole("Admin"))
+        @if (CurrentUser.IsInRole("GrandManager"))
         {
             <div class="col">
                 <div class="card h-100 border-success shadow-sm">

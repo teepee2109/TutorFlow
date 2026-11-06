@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Data.Entities;
-using TutorFlow.Services.Auth;
-using TutorFlow.Services.Common;
+using BackEnd.Services.Auth;
+using BackEnd.Services.Common;
 
-namespace TutorFlow.Services.Users;
+namespace BackEnd.Services.Users;
 
 public class UserService : IUserService
 {

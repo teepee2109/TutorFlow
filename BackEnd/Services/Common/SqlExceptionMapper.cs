@@ -1,7 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
-namespace TutorFlow.Services.Common;
+namespace BackEnd.Services.Common;
 
 /// <summary>
 /// Bộ chuyển đổi lỗi SQL Server thành lỗi nghiệp vụ (ScheduleError)

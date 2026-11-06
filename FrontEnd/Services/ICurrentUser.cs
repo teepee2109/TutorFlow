@@ -1,4 +1,4 @@
-namespace TutorFlow.Web.Services;
+namespace FrontEnd.Services;
 
 public interface ICurrentUser
 {

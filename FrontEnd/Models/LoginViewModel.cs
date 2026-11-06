@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TutorFlow.Web.Models;
+namespace FrontEnd.Models;
 
 public class LoginViewModel
 {

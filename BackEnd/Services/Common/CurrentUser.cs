@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace TutorFlow.Services.Common;
+namespace BackEnd.Services.Common;
 
 public sealed class CurrentUser : ICurrentUser
 {

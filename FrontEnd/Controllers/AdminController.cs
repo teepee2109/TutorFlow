@@ -1,8 +1,8 @@
+using FrontEnd.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TutorFlow.Web.Services.Api;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 [Authorize(Roles = "Admin")]
 public class AdminController : Controller
@@ -23,6 +23,6 @@ public class AdminController : Controller
             ViewBag.ErrorMessage = result.Message;
         }
 
-        return View(result.Value ?? new TutorFlow.Web.Models.AdminDashboardViewModel { TargetDate = targetDate });
+        return View(result.Value ?? new FrontEnd.Models.AdminDashboardViewModel { TargetDate = targetDate });
     }
 }

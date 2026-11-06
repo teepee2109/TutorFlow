@@ -1,13 +1,101 @@
+@model FrontEnd.Models.ClassesIndexViewModel
 @{
     ViewData["Title"] = "Quản lý lớp học";
 }
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0"><i class="bi bi-journal-bookmark me-2"></i>Quản lý lớp học</h4>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">📚 Quản lý lớp học</h2>
+        <p class="text-muted mb-0">Tạo lớp, kiểm tra lịch và sinh các buổi học trong một lần lưu.</p>
     </div>
-    <div class="alert alert-info" role="alert">
-        <i class="bi bi-hammer me-2"></i>
-        <strong>Dev B đang triển khai.</strong> Chức năng quản lý lớp học (F2, F5) sẽ có ở đây.
+    <a asp-action="Create" class="btn btn-primary">➕ Tạo lớp mới</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+@if (ViewBag.ErrorMessage is string listError)
+{
+    <div class="alert alert-danger">@listError</div>
+}
+@if (ViewBag.OptionsErrorMessage is string optionsError)
+{
+    <div class="alert alert-warning">Không tải được danh sách lựa chọn: @optionsError</div>
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Lớp / Môn</th>
+                    <th>Giảng viên</th>
+                    <th>Cơ sở / Phòng / Ca</th>
+                    <th>Lịch</th>
+                    <th>Buổi</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Classes.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-5">Chưa có lớp học nào.</td></tr>
+                }
+                @foreach (var item in Model.Classes)
+                {
+                    <tr>
+                        <td><strong>@item.ClassName</strong><div class="small text-muted">@item.SubjectName</div></td>
+                        <td>@item.LecturerName</td>
+                        <td>@item.FacilityName<div class="small text-muted">Phòng @item.RoomNumber · @item.ShiftName</div></td>
+                        <td><div>@item.DaysOfWeek</div><small class="text-muted">@item.StartDate.ToString("dd/MM/yyyy") – @item.EndDate.ToString("dd/MM/yyyy")</small></td>
+                        <td>@item.SessionCount</td>
+                        <td>
+                            @if (item.Status == "Active")
+                            {
+                                <span class="badge bg-success">Đang mở</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Đã đóng</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex flex-column align-items-end gap-2">
+                                <div class="btn-group btn-group-sm">
+                                    <a asp-action="Details" asp-route-id="@item.ClassId" class="btn btn-outline-secondary">Buổi học</a>
+                                    @if (item.Status == "Active")
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@item.ClassId" class="btn btn-outline-primary">Sửa</a>
+                                        <form method="post" asp-action="Close" asp-route-classId="@item.ClassId" onsubmit="return confirm('Đóng lớp và hủy các buổi học sắp tới?')">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-outline-danger">Đóng lớp</button>
+                                        </form>
+                                    }
+                                </div>
+                                @if (item.Status == "Active" && Model.Options.Lecturers.Count > 0)
+                                {
+                                    <form method="post" asp-action="ChangeLecturer" asp-route-classId="@item.ClassId" class="d-flex gap-1">
+                                        @Html.AntiForgeryToken()
+                                        <select name="lecturerId" class="form-select form-select-sm" aria-label="Đổi giảng viên">
+                                            @foreach (var lecturer in Model.Options.Lecturers)
+                                            {
+                                                <option value="@lecturer.Id" selected="@(lecturer.Id == item.LecturerId)">@lecturer.Name</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-outline-info">Đổi GV</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 </div>

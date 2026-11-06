@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 /// <summary>
 /// Dev D — Điểm danh từng buổi học (F8).

@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using FrontEnd.Services;
 using Microsoft.AspNetCore.Mvc;
-using TutorFlow.Web.Models;
-using TutorFlow.Web.Services;
+using FrontEnd.Models;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 public class HomeController : Controller
 {

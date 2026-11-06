@@ -1,6 +1,6 @@
-using TutorFlow.Services.Common;
+using BackEnd.Services.Common;
 
-namespace TutorFlow.Services.Auth;
+namespace BackEnd.Services.Auth;
 
 public interface IAuthService
 {

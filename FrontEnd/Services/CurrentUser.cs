@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace TutorFlow.Web.Services;
+namespace FrontEnd.Services;
 
 public class CurrentUser : ICurrentUser
 {

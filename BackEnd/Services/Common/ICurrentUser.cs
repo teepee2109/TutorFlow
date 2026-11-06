@@ -1,4 +1,4 @@
-namespace TutorFlow.Services.Common;
+namespace BackEnd.Services.Common;
 
 /// <summary>
 /// Cung cấp thông tin người dùng hiện tại đang đăng nhập

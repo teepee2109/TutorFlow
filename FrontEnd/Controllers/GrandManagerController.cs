@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 /// <summary>
 /// Dashboard trang chủ cho Grand Manager — thống kê toàn hệ thống, quản lý người dùng (F1, F10).

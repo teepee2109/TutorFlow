@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Dtos.Api;
-using TutorFlow.Services.Users;
+using BackEnd.Services.Users;
 
 namespace BackEnd.Controllers.Api;
 

@@ -1,3 +1,6 @@
+using BackEnd.Services.Auth;
+using BackEnd.Services.Users;
+
 namespace BackEnd.Dtos.Api;
 
 public sealed class ApiResponse<T>
@@ -40,7 +43,7 @@ public sealed class LoginResponse
 {
     public string AccessToken { get; init; } = string.Empty;
     public DateTime ExpiresAtUtc { get; init; }
-    public TutorFlow.Services.Auth.UserAuthDto User { get; init; } = new();
+    public UserAuthDto User { get; init; } = new();
 }
 
 public sealed class UserActiveRequest
@@ -84,7 +87,7 @@ public sealed class FacilityItemDto
 public sealed class FacilitiesDataDto
 {
     public List<FacilityItemDto> Facilities { get; init; } = new();
-    public List<TutorFlow.Services.Users.UserDto> EligibleManagers { get; init; } = new();
+    public List<UserDto> EligibleManagers { get; init; } = new();
 }
 
 public sealed class AdminDashboardDto

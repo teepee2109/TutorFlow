@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Data.Entities;
-using TutorFlow.Services.Common;
+using BackEnd.Services.Common;
 
-namespace TutorFlow.Services.Auth;
+namespace BackEnd.Services.Auth;
 
 public class AuthService : IAuthService
 {

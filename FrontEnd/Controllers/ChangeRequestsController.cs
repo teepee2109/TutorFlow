@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 /// <summary>
 /// Dev C — Yêu cầu đổi phòng/ca từ giảng viên, duyệt bởi Facility Manager (F7).

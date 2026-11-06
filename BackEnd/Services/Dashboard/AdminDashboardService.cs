@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Dtos.Api;
-using TutorFlow.Services.Common;
+using BackEnd.Services.Common;
 
-namespace TutorFlow.Services.Dashboard;
+namespace BackEnd.Services.Dashboard;
 
 public interface IAdminDashboardService
 {
@@ -118,7 +118,7 @@ public sealed class AdminDashboardService : IAdminDashboardService
         }
     }
 
-    private Task<List<BackEnd.Dtos.RoomShiftStatusDto>> GetRoomShiftStatusesAsync(DateOnly targetDate) =>
+    private Task<List<Dtos.RoomShiftStatusDto>> GetRoomShiftStatusesAsync(DateOnly targetDate) =>
         _db.RoomShiftStatuses
             .FromSqlInterpolated($"SELECT * FROM dbo.fn_RoomShiftStatus({targetDate})")
             .AsNoTracking()

@@ -1,10 +1,10 @@
+using FrontEnd.Models;
+using FrontEnd.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using TutorFlow.Web.Models;
-using TutorFlow.Web.Services.Api;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 [Authorize(Roles = "Admin,GrandManager")]
 public class UsersController : Controller

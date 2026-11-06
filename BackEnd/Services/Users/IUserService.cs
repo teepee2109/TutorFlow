@@ -1,6 +1,6 @@
-using TutorFlow.Services.Common;
+using BackEnd.Services.Common;
 
-namespace TutorFlow.Services.Users;
+namespace BackEnd.Services.Users;
 
 public interface IUserService
 {

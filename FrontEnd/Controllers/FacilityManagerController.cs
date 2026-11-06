@@ -1,9 +1,9 @@
+using FrontEnd.Services;
+using FrontEnd.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TutorFlow.Web.Services;
-using TutorFlow.Web.Services.Api;
 
-namespace TutorFlow.Web.Controllers;
+namespace FrontEnd.Controllers;
 
 /// <summary>
 /// Dashboard trang chủ cho Facility Manager — thống kê cơ sở phụ trách (F3, F6, F7, F10).
@@ -31,7 +31,7 @@ public class FacilityManagerController : Controller
 
         ViewData["Title"] = "Facility Manager Dashboard";
         ViewData["FacilityId"] = _currentUser.FacilityId;
-        return View(result.Value ?? new TutorFlow.Web.Models.AdminDashboardViewModel
+        return View(result.Value ?? new FrontEnd.Models.AdminDashboardViewModel
         {
             FacilityId = _currentUser.FacilityId,
             TargetDate = targetDate

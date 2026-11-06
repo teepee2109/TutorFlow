@@ -1,4 +1,4 @@
-namespace TutorFlow.Data.Models.Keyless;
+namespace BackEnd.Dtos;
 
 public class StudentAttendanceTuitionDto
 {

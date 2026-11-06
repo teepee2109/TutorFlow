@@ -4,6 +4,7 @@
 **/obj/
 *.user
 *.slnLaunch.user
+/CLAUDE.md
 
 # Local settings and secrets
 **/appsettings.Development.json

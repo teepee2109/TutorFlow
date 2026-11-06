@@ -1,0 +1,499 @@
+==============================================================================
+TUTORFLOW - TÀI LIỆU DỰ ÁN (FINAL_PROJECT_DOC)            Phiên bản 2.0
+Hệ thống quản lý trung tâm dạy thêm: lớp học, phòng, ca, điểm danh, học phí
+Công nghệ: C# .NET 8.0 + SQL Server (script: TutorFlow.sql v2.0)
+==============================================================================
+
+0. THAY ĐỔI SO VỚI BẢN TRƯỚC
+------------------------------------------------------------------------------
+- Viết lại theo hướng LUỒNG NGHIỆP VỤ + QUY TẮC + PHÂN CÔNG DEV.
+- Bổ sung nhóm quy tắc CHỐNG TRÙNG LỊCH (phòng / giảng viên / học viên /
+  phòng đóng) và nơi thực thi từng quy tắc trong database.
+- Mục "6. Function Description" của bản cũ bị cắt dở ở phần Admin; đã bổ sung
+  danh sách thống kê (xem mục 5, luồng F10). Cần xác nhận lại với giảng viên
+  hướng dẫn / khách hàng.
+- Bổ sung 1 giả định thiết kế mới: mỗi Facility Manager phụ trách 1 cơ sở
+  (Facilities.ManagerId). Bản cũ không nói rõ điều này (xem mục 11).
+
+
+1. TỔNG QUAN
+------------------------------------------------------------------------------
+TutorFlow phục vụ 5 vai trò: Admin, Grand Manager, Facility Manager,
+Lecturer (Giảng viên), Student (Học viên).
+
+Vòng đời nghiệp vụ chính:
+  Tạo tài khoản -> Tạo lớp -> Sinh buổi học (có xếp phòng/ca) -> Ghi danh học
+  viên -> Giảng viên điểm danh từng buổi -> Tính học phí theo số buổi đi học
+  -> Ghi nhận thanh toán.
+Song song: Giảng viên gửi yêu cầu đổi phòng/ca -> Facility Manager duyệt;
+Facility Manager theo dõi phòng trống/đang dùng/đóng bảo trì.
+
+
+2. DỮ LIỆU DANH MỤC (cố định)
+------------------------------------------------------------------------------
+2.1 Vai trò   : Admin, GrandManager, FacilityManager, Lecturer, Student
+2.2 Môn học   : Math, Literature, Physics, English, Chemistry
+2.3 Cơ sở     : 3 cơ sở, mỗi cơ sở 6 phòng (18 phòng; mã phòng P101..P106,
+                P201..P206, P301..P306)
+2.4 Ca học    : Ca 1: 4h30-6h00 | Ca 2: 6h00-7h30 | Ca 3: 7h30-9h00
+2.5 Học phí   : 200.000 VND / buổi đi học (SystemSettings.TUITION_PER_SESSION)
+2.6 Ngày học  : lưu dạng "2,4,6"; 2 = Thứ 2 ... 7 = Thứ 7, 8 = Chủ nhật
+
+
+3. QUY TẮC NGHIỆP VỤ (BUSINESS RULES) VÀ NƠI THỰC THI
+------------------------------------------------------------------------------
+Nguyên tắc: UI/Service kiểm tra trước để báo lỗi thân thiện, nhưng DATABASE là
+chốt chặn cuối cùng. Dev KHÔNG được bỏ qua lỗi từ DB.
+
+BR-01  Phòng không bị đặt trùng
+       Một phòng chỉ có tối đa 1 buổi học (không tính buổi Cancelled) cho mỗi
+       cặp (ngày, ca).
+       DB: UNIQUE FILTERED INDEX UX_Sessions_Room_Shift_Date
+       Mã lỗi: ROOM_CONFLICT
+
+BR-02  Giảng viên không dạy 2 lớp cùng ca cùng ngày (kể cả 2 cơ sở khác nhau)
+       DB: UNIQUE FILTERED INDEX UX_Sessions_Lecturer_Shift_Date
+           (dựa trên ClassSessions.LecturerId)
+       Mã lỗi: LECTURER_CONFLICT
+       Dạy thay: đổi ClassSessions.LecturerId của đúng buổi đó; vẫn bị BR-02
+       kiểm tra.
+
+BR-03  Học viên không học 2 lớp trùng (ngày, ca)
+       Kiểm tra theo từng buổi học thật, ở 2 thời điểm:
+       (a) Khi ghi danh  -> trigger trg_Enrollments_Validate  -> 50013
+           CONFLICT_STUDENT_ENROLL
+       (b) Khi tạo / dời buổi học -> trigger trg_ClassSessions_Validate
+           -> 50012 CONFLICT_STUDENT_SESSION (bắt được cả trường hợp duyệt
+           đổi ca 1 buổi làm trùng lịch học viên)
+
+BR-04  Phòng đóng bảo trì (Condition = 'Closed')
+       - Không xếp buổi Scheduled vào phòng Closed          -> 50010 ROOM_CLOSED
+       - Không gán phòng Closed làm phòng mặc định cho lớp Active -> 50010
+       - Không cho đóng phòng khi còn buổi Scheduled từ hôm nay trở đi
+         -> 50011 ROOM_HAS_SCHEDULE (phải dời/hủy các buổi đó trước)
+
+BR-05  Phòng mặc định của lớp phải thuộc đúng cơ sở của lớp
+       DB: composite FK (RoomId, FacilityId). Buổi học lẻ có thể đổi sang phòng
+       của cơ sở khác nếu Facility Manager duyệt.
+
+BR-06  Đúng vai trò -> 50014 INVALID_ROLE
+       Classes.LecturerId / ClassSessions.LecturerId phải là Lecturer;
+       Enrollments.StudentId phải là Student;
+       Facilities.ManagerId phải là FacilityManager.
+
+BR-07  Điểm danh
+       - Học viên phải đã ghi danh lớp của buổi đó      -> 50015
+       - Chỉ giảng viên của buổi đó được điểm danh/sửa  -> 50016
+         (khi UPDATE luôn set Attendance.UpdatedBy = giảng viên đang sửa)
+       - Không điểm danh buổi đã Cancelled hoặc buổi chưa diễn ra -> 50017
+       - Trạng thái: Present / ExcusedAbsent / UnexcusedAbsent
+
+BR-08  Học phí = (số buổi Present) x 200.000 VND
+       ExcusedAbsent và UnexcusedAbsent không tính tiền (giả định, xem mục 11).
+       Không tạo trùng học phí cùng (học viên, lớp, kỳ): UQ_Tuition_Period.
+
+BR-09  Xóa người dùng là XÓA MỀM (Users.IsDeleted = 1). Khóa tạm = IsActive = 0.
+
+BR-10  Mỗi lớp chỉ có 1 buổi / ngày (UQ_Session). Đổi phòng/ca/giờ của một buổi
+       = UPDATE chính buổi đó, KHÔNG INSERT buổi mới.
+
+BR-11  Mỗi Facility Manager phụ trách tối đa 1 cơ sở (UX_Facilities_Manager)
+       và chỉ thao tác trên cơ sở của mình.
+
+BR-12  Lớp bắt buộc có StartDate, EndDate (để sinh buổi học) và DaysOfWeek hợp
+       lệ (chỉ gồm các số 2-8 và dấu phẩy).
+
+
+4. PHÂN QUYỀN (MA TRẬN)
+------------------------------------------------------------------------------
+Ký hiệu: C=Create, R=Read, U=Update, D=Delete(mềm), -=không có quyền
+
+Chức năng                         Admin  GrandMgr  FacilityMgr  Lecturer  Student
+--------------------------------  -----  --------  -----------  --------  -------
+Tài khoản Grand Manager           CRUD   -         -            -         -
+Tài khoản Facility Manager        CRUD   CRUD      -            -         -
+Tài khoản Lecturer                CRUD   CRUD      -            -         -
+Tài khoản/Danh sách Student       CRUD   CRUD      -            -         R (mình)
+Lớp học & sinh buổi học           R      CRUD      R            R (của    R (của
+                                                                mình)     mình)
+Ghi danh học viên vào lớp         -      CRUD      -            -         -
+Xếp/gán phòng cho giảng viên      -      -         CRU (cơ sở   -         -
+                                                   của mình)
+Mở/Đóng phòng bảo trì             R      R         U (cơ sở      -         -
+                                                   của mình)
+Xem phòng trống/đang dùng/đóng    R      R         R            R         -
+Điểm danh                         -      R         R            CRU (buổi R (mình)
+                                                                của mình)
+Gửi yêu cầu đổi phòng/ca          -      -         -            C, R      -
+Duyệt yêu cầu đổi phòng/ca        -      -         U (cơ sở      -         -
+                                                   của mình)
+Xem số buổi đi học + học phí      R      CRUD      -            R (lớp    R (mình)
+                                                                mình dạy)
+Ghi nhận thanh toán               -      CRU       -            -         -
+Dashboard thống kê                R      R         R (cơ sở)    -         -
+
+Ghi chú: Admin xem thống kê toàn hệ thống; "cơ sở của mình" lấy từ
+Facilities.ManagerId = UserId của Facility Manager đang đăng nhập.
+
+
+5. CÁC LUỒNG NGHIỆP VỤ
+------------------------------------------------------------------------------
+
+F1. QUẢN LÝ TÀI KHOẢN
+  Actor: Admin, Grand Manager
+  1. Admin/GM mở danh sách người dùng (lọc theo vai trò, cơ sở, trạng thái).
+  2. Thêm: nhập họ tên, email (duy nhất), SĐT, vai trò, mật khẩu tạm.
+     Hệ thống hash mật khẩu (PasswordHasher/BCrypt), IsActive = 1.
+     GM chỉ được tạo FacilityManager / Lecturer / Student.
+  3. Sửa: đổi thông tin, khóa/mở tài khoản (IsActive), đặt lại mật khẩu.
+  4. Xóa: xóa mềm (IsDeleted = 1). Chặn xóa Lecturer còn lớp Active hoặc
+     Facility Manager đang phụ trách cơ sở (phải chuyển giao trước).
+  5. Gán Facility Manager cho cơ sở: Admin chọn cơ sở -> chọn FM
+     (Facilities.ManagerId). Lỗi INVALID_ROLE nếu chọn sai vai trò.
+
+F2. TẠO LỚP VÀ SINH BUỔI HỌC (xếp lịch)
+  Actor: Grand Manager
+  1. GM nhập: tên lớp, môn, giảng viên, cơ sở, phòng mặc định, ca, ngày học
+     trong tuần (vd 2,4,6), ngày bắt đầu - kết thúc.
+  2. UI chỉ liệt kê phòng của cơ sở đã chọn và có Condition = 'Open'.
+  3. Service tính danh sách ngày học (từ StartDate đến EndDate khớp
+     DaysOfWeek) và PRE-CHECK xung đột (chỉ để báo lỗi sớm, không thay DB):
+       - phòng đã có buổi cùng (ngày, ca) ?            -> BR-01
+       - giảng viên đã có buổi cùng (ngày, ca) ?       -> BR-02
+       - phòng đang Closed ?                           -> BR-04
+  4. Nếu có xung đột: hiển thị bảng "ngày - loại xung đột - lớp đang chiếm",
+     KHÔNG tạo gì (all-or-nothing). GM đổi phòng/ca/giảng viên rồi thử lại.
+  5. Nếu sạch: trong MỘT transaction -> INSERT Classes -> INSERT hàng loạt
+     ClassSessions (RoomId, ShiftId, LecturerId lấy từ lớp, Status =
+     'Scheduled'). Nếu DB vẫn ném lỗi (ví dụ người khác vừa đặt trước) ->
+     rollback toàn bộ và báo lỗi theo bảng mã lỗi (mục 7.4).
+  6. Đổi giảng viên của lớp: UPDATE Classes.LecturerId; trigger tự cập nhật
+     các buổi Scheduled sắp tới. Nếu giảng viên mới bị trùng -> chặn.
+  7. Đóng lớp: Classes.Status = 'Closed'; các buổi Scheduled sắp tới chuyển
+     'Cancelled' (giải phóng phòng và giảng viên).
+
+F3. GHI DANH HỌC VIÊN
+  Actor: Grand Manager
+  1. GM tìm học viên -> chọn lớp -> Ghi danh.
+  2. DB kiểm tra BR-03(a). Nếu trùng, báo: "Học viên đang học lớp X cùng
+     ca/ngày (liệt kê các ngày trùng)". Service nên có hàm preview để liệt kê
+     ngày trùng trước khi ghi.
+  3. Học viên nghỉ học: Enrollments.Status = 'Dropped' (không xóa dòng). Các
+     buổi sau đó không còn bị tính vào lịch của học viên.
+  4. Ghi danh lại học viên đã Dropped: UPDATE Status = 'Active' (DB kiểm tra
+     lại BR-03).
+
+F4. ĐIỂM DANH
+  Actor: Lecturer
+  1. Giảng viên mở "Lịch dạy của tôi" (theo ngày/tuần) -> chọn buổi học.
+  2. Hệ thống lấy danh sách học viên Active của lớp (và học viên có
+     EnrollDate <= ngày buổi học).
+  3. Giảng viên chọn Present / ExcusedAbsent / UnexcusedAbsent + ghi chú, Lưu.
+  4. Lưu = INSERT nếu chưa có, UPDATE nếu đã có (UQ: SessionId + StudentId).
+     Insert: RecordedBy = giảng viên. Update: UpdatedBy = giảng viên, UpdatedAt.
+  5. Khi xong buổi: Status buổi = 'Completed'.
+  6. Lỗi có thể gặp: 50015 / 50016 / 50017 (mục 3, BR-07).
+
+F5. TÍNH HỌC PHÍ VÀ THANH TOÁN
+  Actor: Grand Manager (xem: Lecturer, Student của mình)
+  1. Hiển thị theo học viên + lớp + kỳ (mặc định theo tháng): số buổi đi học,
+     số buổi nghỉ có phép, nghỉ không phép, học phí tạm tính.
+     Nguồn dữ liệu: fn_StudentAttendanceTuition(@From, @To).
+     Công thức: học phí = PresentDays x 200.000.
+  2. GM bấm "Phát hành học phí": tạo Tuitions (SessionsAttended = PresentDays,
+     AmountPerSession = đơn giá hiện tại, DueDate). Trùng kỳ bị UQ chặn.
+  3. Thu tiền: tạo Payments (ReceivedBy = GM, phương thức, số biên lai). Khi
+     tổng AmountPaid >= TotalAmount -> Service đặt PaymentStatus = 'Paid'.
+  4. Học viên xem học phí và lịch sử đóng của mình (chỉ đọc).
+
+F6. THEO DÕI PHÒNG (trống / đang dùng / đóng bảo trì)
+  Actor: Facility Manager (Admin, GM, Lecturer chỉ xem)
+  1. Chọn ngày (mặc định hôm nay) -> lưới Phòng x Ca của cơ sở mình.
+     Nguồn: fn_RoomShiftStatus(@Date). Mỗi ô có 1 trong 3 trạng thái:
+       Occupied (có lớp, hiện tên lớp + giảng viên)
+       Empty
+       Closed for Maintenance
+  2. Bấm ô Empty -> "Xếp phòng": chọn lớp/buổi cần xếp (xem F7).
+
+F7. XẾP / ĐỔI PHÒNG CHO GIẢNG VIÊN
+  Actor: Facility Manager
+  Hai nguồn: (a) FM chủ động xếp; (b) FM xử lý yêu cầu của giảng viên (F8).
+  1. Chọn lớp (hoặc 1 buổi) và phòng đích còn Empty cùng (ngày, ca).
+  2. Service UPDATE ClassSessions.RoomId (1 buổi) hoặc Classes.RoomId + tất cả
+     buổi Scheduled sắp tới (đổi vĩnh viễn) trong 1 transaction.
+  3. DB tự chặn: phòng trùng (BR-01), phòng Closed (BR-04). Lỗi -> rollback.
+
+F8. GIẢNG VIÊN YÊU CẦU ĐỔI PHÒNG / CA ("contact Facility Manager")
+  Actor: Lecturer -> Facility Manager
+  1. Giảng viên chọn buổi (hoặc "cả lớp"), chọn phòng và/hoặc ca mong muốn,
+     nhập lý do -> RoomChangeRequests (Status = 'Pending'). Phải có ít nhất
+     phòng hoặc ca mới.
+  2. FM (của cơ sở có phòng đích) thấy danh sách Pending (có badge trên
+     dashboard).
+  3. Duyệt (Approve): trong 1 transaction -> áp dụng thay đổi qua
+     ISessionService.RescheduleSessionAsync (F7) -> set Status = 'Approved',
+     ReviewedBy, ReviewedAt. Nếu DB ném lỗi (phòng bận, giảng viên trùng ca,
+     học viên trùng lịch...) -> rollback, yêu cầu VẪN Pending, hiển thị lý do
+     cho FM để từ chối hoặc đề xuất phòng khác.
+  4. Từ chối (Reject): bắt buộc ReviewNote.
+  5. Giảng viên xem trạng thái yêu cầu của mình.
+
+F9. ĐÓNG PHÒNG BẢO TRÌ
+  Actor: Facility Manager
+  1. FM bấm "Đóng bảo trì" cho phòng.
+  2. Nếu còn buổi Scheduled từ hôm nay: DB trả 50011. UI liệt kê các buổi bị
+     ảnh hưởng và cho 2 lựa chọn mỗi buổi: dời sang phòng Empty cùng ca (F7)
+     hoặc hủy buổi (Status = 'Cancelled').
+  3. Xử lý hết -> đóng phòng lại (Condition = 'Closed'). Mở lại: UPDATE về
+     'Open'.
+
+F10. DASHBOARD THỐNG KÊ (Admin; FM xem theo cơ sở)
+  Nguồn: vw_AdminStats + fn_RoomShiftStatus.
+  - Số phòng hoạt động (Open) / đang đóng bảo trì / tổng phòng
+  - Số lớp đang hoạt động, số giảng viên, số học viên đang hoạt động
+  - Số yêu cầu đổi phòng/ca đang chờ duyệt
+  - Tổng học phí chưa thu
+  (Danh sách này là phần bổ sung vì bản cũ bị cắt dở - cần xác nhận.)
+
+
+6. MÔ HÌNH DỮ LIỆU (TÓM TẮT)
+------------------------------------------------------------------------------
+Roles, Users(IsActive, IsDeleted)
+Facilities(ManagerId) 1-n Rooms(Condition Open/Closed)
+Shifts, Subjects
+Classes(Lecturer, Facility, Room mặc định, Shift, DaysOfWeek, Start/End)
+ClassSessions(Class, Date, Room, Shift, Lecturer, Status)  <- bảng trung tâm
+Enrollments(Student, Class, Active/Dropped)
+Attendance(Session, Student, Status, RecordedBy, UpdatedBy)
+Tuitions(Student, Class, kỳ, SessionsAttended, TotalAmount tính sẵn)
+Payments(Tuition, AmountPaid, ReceivedBy)
+RoomChangeRequests(Lecturer, Class, Session?, phòng/ca hiện tại & mong muốn)
+SystemSettings(TUITION_PER_SESSION = 200000)
+
+View / Function có sẵn trong DB:
+  fn_RoomShiftStatus(@Date)               -> lưới phòng x ca (F6)
+  vw_AdminStats                           -> thống kê (F10)
+  fn_StudentAttendanceTuition(@From,@To)  -> số buổi + học phí tạm tính (F5)
+
+
+7. KIẾN TRÚC VÀ QUY ƯỚC C# .NET 8
+------------------------------------------------------------------------------
+7.1 Cấu trúc solution (đề xuất)
+    TutorFlow.Data      : entity + DbContext (EF Core 8)
+    TutorFlow.Services  : nghiệp vụ (các interface ở mục 8)
+    TutorFlow.Web       : ASP.NET Core 8 (MVC / Razor Pages / Blazor - nhóm chốt)
+    TutorFlow.Tests     : unit + integration test (SQL Server thật / Testcontainers)
+
+7.2 Database-first (EF Core 8.0.x)
+    YÊU CẦU: dùng EF Core 8.0.x. NuGet mặc định lấy bản mới nhất (9.x trở lên
+    vẫn chạy được trên .NET 8) nên PHẢI ghim phiên bản, cả nhóm dùng chung:
+      dotnet add TutorFlow.Data package Microsoft.EntityFrameworkCore.SqlServer --version 8.0.*
+      dotnet add TutorFlow.Data package Microsoft.EntityFrameworkCore.Design    --version 8.0.*
+      dotnet tool install --global dotnet-ef --version 8.0.*
+    Nên ghim thêm bằng <PackageReference Version="8.0.*"> trong .csproj và
+    <TargetFramework>net8.0</TargetFramework>; không nâng lên 9.x nếu chưa
+    thống nhất.
+    TutorFlow.sql là nguồn sự thật. Sinh entity bằng:
+      dotnet ef dbcontext scaffold "<conn>" Microsoft.EntityFrameworkCore.SqlServer
+        --project TutorFlow.Data --context TutorFlowDbContext --data-annotations
+    Mọi thay đổi schema -> sửa TutorFlow.sql + thông báo cả nhóm, KHÔNG tự sửa
+    DB cục bộ rồi quên đồng bộ. Lưu ý: DATE -> DateOnly, TIME -> TimeOnly.
+
+7.3 BẮT BUỘC: khai báo trigger trong DbContext (EF Core 7+, áp dụng cho 8.0.x)
+    Bảng có trigger mà không khai báo sẽ lỗi khi SaveChanges. Khai báo:
+      modelBuilder.Entity<Facility>().ToTable(t => t.HasTrigger("trg_Facilities_Validate"));
+      modelBuilder.Entity<Room>().ToTable(t => t.HasTrigger("trg_Rooms_ClosedHasFutureSession"));
+      modelBuilder.Entity<Class>().ToTable(t => t.HasTrigger("trg_Classes_Validate"));
+      modelBuilder.Entity<ClassSession>().ToTable(t => t.HasTrigger("trg_ClassSessions_Validate"));
+      modelBuilder.Entity<Enrollment>().ToTable(t => t.HasTrigger("trg_Enrollments_Validate"));
+      modelBuilder.Entity<Attendance>().ToTable(t => t.HasTrigger("trg_Attendance_Validate"));
+    Tuitions.TotalAmount là cột computed: cấu hình ValueGeneratedOnAddOrUpdate
+    (scaffold tự làm), không gán giá trị từ code.
+
+7.4 Ánh xạ lỗi database -> lỗi nghiệp vụ (Dev A viết 1 lần, mọi module dùng)
+    Bắt DbUpdateException, lấy InnerException là SqlException:
+
+      public static ScheduleError? Map(SqlException ex) => ex.Number switch
+      {
+          2601 or 2627 when ex.Message.Contains("UX_Sessions_Room_Shift_Date")     => ScheduleError.RoomConflict,
+          2601 or 2627 when ex.Message.Contains("UX_Sessions_Lecturer_Shift_Date") => ScheduleError.LecturerConflict,
+          2601 or 2627 when ex.Message.Contains("UQ_Session")                      => ScheduleError.SessionDuplicate,
+          50010 => ScheduleError.RoomClosed,
+          50011 => ScheduleError.RoomHasSchedule,
+          50012 => ScheduleError.StudentSessionConflict,
+          50013 => ScheduleError.StudentEnrollConflict,
+          50014 => ScheduleError.InvalidRole,
+          50015 => ScheduleError.AttendanceNotEnrolled,
+          50016 => ScheduleError.AttendanceForbidden,
+          50017 => ScheduleError.AttendanceSessionInvalid,
+          _ => null
+      };
+
+    Deadlock (1205): retry giao dịch tối đa 3 lần (các trigger dùng khóa
+    UPDLOCK/HOLDLOCK để chống 2 giao dịch song song ghi danh trùng lịch).
+    Service trả Result<T> kèm ScheduleError, KHÔNG để SqlException lọt lên UI.
+
+7.5 Quy ước khác
+    - Chuyển DayOfWeek .NET sang quy ước DB:
+        static int ToDbDay(DayOfWeek d) => d == DayOfWeek.Sunday ? 8 : (int)d + 1;
+    - Thao tác nhiều bản ghi (sinh buổi học, đổi phòng cả lớp, duyệt yêu cầu)
+      phải nằm trong 1 transaction (all-or-nothing).
+    - Đăng nhập: Cookie authentication + role claim; FM có thêm claim FacilityId.
+      Mọi truy vấn của FM phải lọc theo FacilityId của họ (kiểm ở Service, không
+      chỉ ẩn nút trên UI).
+    - Luôn lọc Users.IsDeleted = 0 (dùng Global Query Filter).
+    - Mật khẩu: PasswordHasher<T> hoặc BCrypt; không lưu rõ.
+    - Giờ nghiệp vụ theo giờ Việt Nam; server SQL dùng GETDATE().
+
+
+8. PHÂN CHIA CÔNG VIỆC CHO DEV
+------------------------------------------------------------------------------
+Đề xuất 5 dev, chia theo module/vai trò để ít đụng file nhau. Mỗi dev sở hữu
+Service + Controller/Page + View của module mình. Dùng chung DbContext và
+Result<T> do Dev A cung cấp.
+
+DEV A - NỀN TẢNG, TÀI KHOẢN, DASHBOARD (làm ĐẦU TIÊN, các dev khác phụ thuộc)
+  Sở hữu bảng: Roles, Users, SystemSettings, Facilities.ManagerId
+  Việc:
+  - Khởi tạo solution, DbContext (scaffold), khai báo HasTrigger, Global Query
+    Filter IsDeleted.
+  - Auth (đăng nhập, cookie, role policy, claim FacilityId), layout + menu theo
+    vai trò.
+  - Result<T>, enum ScheduleError, SqlExceptionMapper (mục 7.4), middleware lỗi.
+  - F1: CRUD tài khoản theo ma trận quyền, gán FM vào cơ sở.
+  - F10: Dashboard (vw_AdminStats).
+  - Seed dữ liệu mẫu (script SQL hoặc code) để cả nhóm test.
+  Interface: IAuthService, IUserService, IAdminDashboardService
+
+DEV B - LỚP HỌC VÀ SINH BUỔI HỌC (Grand Manager)
+  Sở hữu bảng: Classes, ClassSessions (ghi), Subjects
+  Việc:
+  - F2: CRUD lớp, pre-check xung đột, sinh buổi học all-or-nothing, đổi giảng
+    viên, đóng lớp (hủy buổi sắp tới).
+  - Cung cấp cho Dev C: RescheduleSessionAsync (đổi phòng/ca/ngày 1 buổi hoặc
+    cả lớp), CancelSessionAsync, AssignSubstituteAsync.
+  Interface:
+    IClassService     : CreateAsync, UpdateAsync, ChangeLecturerAsync, CloseAsync
+    ISessionService   : GenerateForClassAsync, RescheduleSessionAsync,
+                        CancelSessionAsync, AssignSubstituteAsync
+    IScheduleConflictChecker : PreviewClassConflictsAsync(...)
+  Test bắt buộc: TC-01, TC-02, TC-03, TC-04, TC-11 (mục 10).
+
+DEV C - CƠ SỞ / PHÒNG / DUYỆT YÊU CẦU (Facility Manager)
+  Sở hữu bảng: Facilities, Rooms (ghi Condition), RoomChangeRequests (phần duyệt)
+  Việc:
+  - F6: lưới phòng x ca (fn_RoomShiftStatus), lọc theo cơ sở, theo ngày.
+  - F7: xếp/đổi phòng (gọi ISessionService của Dev B).
+  - F8 (phía FM): danh sách Pending, Approve/Reject.
+  - F9: đóng/mở phòng, xử lý các buổi bị ảnh hưởng (dời hoặc hủy hàng loạt).
+  Interface:
+    IRoomService : GetStatusGridAsync(facilityId, date), FindEmptyRoomsAsync,
+                   SetConditionAsync, GetAffectedSessionsAsync
+    IChangeRequestReviewService : ListPendingAsync, ApproveAsync, RejectAsync
+  Phụ thuộc: Dev B (ISessionService). Trong lúc chờ, dùng bản mock.
+  Test bắt buộc: TC-06, TC-07, TC-08.
+
+DEV D - GIẢNG VIÊN (Lecturer)
+  Sở hữu bảng: Attendance, RoomChangeRequests (phần tạo)
+  Việc:
+  - Trang "Lịch dạy của tôi" (tuần/ngày).
+  - F4: màn hình điểm danh, lưu/sửa, hoàn tất buổi (Completed).
+  - F8 (phía giảng viên): tạo yêu cầu đổi phòng/ca, xem trạng thái.
+  Interface:
+    ILecturerScheduleService : GetMyScheduleAsync(lecturerId, from, to)
+    IAttendanceService       : GetRosterAsync(sessionId), SaveAsync(sessionId,
+                               items, lecturerId), CompleteSessionAsync
+    IChangeRequestService    : CreateAsync, ListMineAsync
+  Test bắt buộc: TC-10.
+
+DEV E - HỌC VIÊN, GHI DANH, HỌC PHÍ (Grand Manager + Student)
+  Sở hữu bảng: Enrollments, Tuitions, Payments
+  Việc:
+  - Quản lý danh sách học viên (giao diện; tạo tài khoản dùng IUserService).
+  - F3: ghi danh / nghỉ học / ghi danh lại + hàm preview ngày trùng.
+  - F5: màn hình số buổi đi học + học phí tạm tính, phát hành học phí, ghi
+    nhận thanh toán, cập nhật PaymentStatus.
+  - Cổng học viên: xem lịch học, điểm danh, học phí của mình.
+  Interface:
+    IEnrollmentService : EnrollAsync, DropAsync, PreviewConflictsAsync
+    ITuitionService    : PreviewAsync(classId, from, to), IssueAsync,
+                         RecordPaymentAsync
+    IStudentPortalService : GetMyScheduleAsync, GetMyAttendanceAsync, GetMyTuitionAsync
+  Test bắt buộc: TC-05, TC-09, TC-12.
+
+Nếu nhóm ít người hơn 5:
+  - 4 dev: gộp Dev C + Dev D.
+  - 3 dev: gộp (A + D) và (C + E); Dev B giữ nguyên.
+
+Hợp đồng chung (Dev A chốt trong Sprint 0, đưa vào TutorFlow.Services):
+  Result<T> { bool Success; T? Value; ScheduleError? Error; string Message; }
+  ScheduleError = RoomConflict, LecturerConflict, SessionDuplicate, RoomClosed,
+    RoomHasSchedule, StudentSessionConflict, StudentEnrollConflict, InvalidRole,
+    AttendanceNotEnrolled, AttendanceForbidden, AttendanceSessionInvalid.
+
+
+9. LỘ TRÌNH VÀ PHỤ THUỘC (gợi ý)
+------------------------------------------------------------------------------
+Sprint 0  Dev A: solution + DbContext + auth + Result/Mapper. Dev B-E: thiết kế
+          màn hình, khai báo interface, viết mock.
+Sprint 1  A: F1.  B: F2 (tạo lớp + sinh buổi).  C: F6 (lưới phòng).
+          E: danh sách học viên.  D: lịch dạy (đọc).
+Sprint 2  E: F3 ghi danh.  D: F4 điểm danh.  C: F7 xếp phòng.  B: đổi giờ/dạy thay.
+Sprint 3  D+C: F8 yêu cầu đổi phòng/ca (hai phía).  C: F9 đóng phòng.
+          E: F5 học phí + thanh toán.  A: F10 dashboard.
+Sprint 4  Tích hợp, chạy trọn bộ test nghiệm thu mục 10, sửa lỗi, demo.
+Phụ thuộc chính: A -> tất cả; B -> C (ISessionService); B -> E (có buổi học mới
+kiểm tra trùng lịch được); D -> E (điểm danh là đầu vào của học phí).
+
+
+10. TEST NGHIỆM THU (ACCEPTANCE)
+------------------------------------------------------------------------------
+Chạy trên database thật (TutorFlow.sql), không mock DB.
+
+TC-01  Phòng trùng: lớp X (P101, Ca 1, Thứ 2) đã có. Tạo lớp Y cùng phòng/ca/
+       ngày -> bị chặn ROOM_CONFLICT; không có buổi nào của Y được tạo.
+TC-02  Buổi của X ngày D bị Cancelled -> tạo lớp khác dùng P101/Ca 1/ngày D
+       được (buổi Cancelled không chiếm chỗ).
+TC-03  Giảng viên G dạy lớp 1 ở Cơ sở 1 (Ca 1, Thứ 2). Tạo lớp 2 do G dạy ở
+       Cơ sở 2 (Ca 1, Thứ 2) -> LECTURER_CONFLICT.
+TC-04  Phân giảng viên dạy thay G2 cho 1 buổi, G2 đã có lớp khác cùng ca/ngày
+       -> LECTURER_CONFLICT.
+TC-05  Học viên ghi danh lớp 1 (Ca 1, Thứ 2/4/6). Ghi danh lớp 2 (Ca 1, Thứ 4)
+       -> CONFLICT_STUDENT_ENROLL. Ghi danh lớp 3 (Ca 2, Thứ 2) -> thành công.
+TC-06  Học viên học lớp 1 (Ca 1) và lớp 2 (Ca 2), không trùng. Giảng viên lớp 2
+       xin đổi 1 buổi sang Ca 1 cùng ngày; FM bấm Approve -> bị chặn
+       CONFLICT_STUDENT_SESSION, yêu cầu vẫn Pending.
+TC-07  Phòng Closed: xếp buổi vào phòng đó -> ROOM_CLOSED. Tạo lớp có phòng mặc
+       định Closed -> ROOM_CLOSED.
+TC-08  Đóng phòng còn buổi Scheduled sắp tới -> ROOM_HAS_SCHEDULE và UI liệt kê
+       buổi. Dời hết sang phòng khác -> đóng được.
+TC-09  Gán user vai trò Student làm giảng viên của lớp -> INVALID_ROLE.
+       Ghi danh user vai trò Lecturer như học viên -> INVALID_ROLE.
+TC-10  Giảng viên khác điểm danh buổi không phải của mình -> ATTENDANCE_FORBIDDEN.
+       Học viên chưa ghi danh -> ATTENDANCE_NOT_ENROLLED. Điểm danh buổi ngày
+       mai -> ATTENDANCE_SESSION_INVALID.
+TC-11  Đồng thời: 2 request cùng lúc tạo 2 lớp xung đột phòng -> đúng 1 thành
+       công, 1 báo ROOM_CONFLICT (không có dữ liệu trùng trong DB).
+TC-12  Học phí: học viên Present 7, ExcusedAbsent 1, UnexcusedAbsent 1 trong kỳ
+       -> hiển thị 7 buổi, học phí 1.400.000 VND.
+TC-13  Tạo lớp với FacilityId không khớp cơ sở của RoomId -> bị DB từ chối (FK).
+
+
+11. GIẢ ĐỊNH VÀ CÂU HỎI MỞ (cần nhóm / khách hàng xác nhận)
+------------------------------------------------------------------------------
+1. Mỗi Facility Manager phụ trách đúng 1 cơ sở? (đang giả định có; nếu 1 FM
+   quản lý nhiều cơ sở thì phải đổi Facilities.ManagerId thành bảng nối.)
+2. "Attended days" = số buổi Present. Nghỉ có phép có được miễn tiền không
+   (đang giả định: không tính tiền)?
+3. Kỳ học phí tính theo tháng hay theo cả khóa? Có thu theo từng lớp riêng?
+4. Sửa điểm danh sau khi đã phát hành học phí: khóa lại, hay cho sửa rồi tính
+   lại học phí? (đề xuất: khóa nếu học phí kỳ đó đã Paid)
+5. Yêu cầu đổi sang phòng của cơ sở khác: FM của cơ sở nào duyệt? (đề xuất:
+   FM của cơ sở có phòng đích.)
+6. Có giới hạn sĩ số theo Rooms.Capacity khi ghi danh không? (hiện chưa kiểm.)
+7. Công nghệ giao diện: MVC, Razor Pages hay Blazor?
+8. Danh sách thống kê Admin (F10) và số lượng dev thực tế cần chốt.
+
+==============================================================================
+HẾT TÀI LIỆU
+==============================================================================

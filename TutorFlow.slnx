@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="backend/TutorFlow_BackEnd/TutorFlow_BackEnd.csproj" />
-  <Project Path="frontend/TutorFlow_FrontEnd/TutorFlow_FrontEnd.csproj" />
+  <Project Path="BackEnd/BackEnd.csproj" />
+  <Project Path="FrontEnd/FrontEnd.csproj" />
 </Solution>

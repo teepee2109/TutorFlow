@@ -1,0 +1,165 @@
+@inject ICurrentUser CurrentUser
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - TutorFlow</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/FrontEnd.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom mb-3 shadow-sm">
+            <div class="container-fluid px-4">
+                <a class="navbar-brand fw-bold text-primary" asp-controller="Home" asp-action="Index">
+                    🎓 TutorFlow
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        @if (CurrentUser.IsAuthenticated)
+                        {
+                            @* ===== ADMIN ===== *@
+                            @if (CurrentUser.IsInRole("Admin"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Admin" asp-action="Index">📊 Dashboard</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Users" asp-action="Index">👥 Quản lý tài khoản</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Users" asp-action="Facilities">🏢 Cơ sở &amp; FM</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Classes" asp-action="Index">📚 Lớp &amp; Buổi học</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Enrollments" asp-action="Index">📝 Ghi danh</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Tuitions" asp-action="Index">💰 Học phí</a>
+                                </li>
+                            }
+
+                            @* ===== GRAND MANAGER ===== *@
+                            @if (CurrentUser.IsInRole("GrandManager"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="GrandManager" asp-action="Index">📊 Dashboard</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Users" asp-action="Index">👥 Tài khoản</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Classes" asp-action="Index">📚 Lớp &amp; Buổi học</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Enrollments" asp-action="Index">📝 Ghi danh</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Tuitions" asp-action="Index">💰 Học phí</a>
+                                </li>
+                            }
+
+                            @* ===== FACILITY MANAGER ===== *@
+                            @if (CurrentUser.IsInRole("FacilityManager"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="FacilityManager" asp-action="Index">📊 Dashboard</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🏢 Lưới phòng &amp; Ca</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="ChangeRequests" asp-action="Index">📋 Duyệt đổi phòng</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Attendance" asp-action="Index">✅ Điểm danh</a>
+                                </li>
+                            }
+
+                            @* ===== LECTURER ===== *@
+                            @if (CurrentUser.IsInRole("Lecturer"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Schedule" asp-action="Index">📅 Lịch dạy &amp; Điểm danh</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="ChangeRequests" asp-action="Create">🔄 Xin đổi phòng/ca</a>
+                                </li>
+                            }
+
+                            @* ===== STUDENT ===== *@
+                            @if (CurrentUser.IsInRole("Student"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="StudentSchedule" asp-action="Index">📖 Lịch học</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="StudentTuition" asp-action="Index">💳 Học phí của tôi</a>
+                                </li>
+                            }
+                        }
+                    </ul>
+
+                    <ul class="navbar-nav">
+                        @if (CurrentUser.IsAuthenticated)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
+                                    👤 <strong>@CurrentUser.FullName</strong>
+                                    <span class="badge bg-secondary ms-1">@CurrentUser.Role</span>
+                                    @if (CurrentUser.FacilityId.HasValue)
+                                    {
+                                        <span class="badge bg-info text-dark ms-1">Cơ sở @CurrentUser.FacilityId</span>
+                                    }
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow">
+                                    <li><span class="dropdown-item-text small text-muted">@CurrentUser.Email</span></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="post" asp-controller="Account" asp-action="Logout" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="dropdown-item text-danger">🚪 Đăng xuất</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="btn btn-outline-light btn-sm" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid px-4">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted py-3 mt-4">
+        <div class="container-fluid px-4 text-center">
+            &copy; 2026 - <strong>TutorFlow</strong> - Hệ thống quản lý trung tâm dạy thêm (ASP.NET Core MVC)
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

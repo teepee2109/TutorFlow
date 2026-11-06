@@ -1,0 +1,103 @@
+@inject ICurrentUser CurrentUser
+@{
+    ViewData["Title"] = "Trang chủ - TutorFlow";
+}
+
+<div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
+    <div class="container-fluid py-3">
+        <h1 class="display-5 fw-bold text-primary">Chào mừng đến với TutorFlow (MVC)</h1>
+        <p class="col-md-8 fs-5 text-muted">
+            Hệ thống quản lý trung tâm dạy thêm: Xếp lớp, chống trùng lịch phòng & ca học, 
+            phân công giảng viên, điểm danh buổi học và quản lý học phí chính xác.
+        </p>
+        @if (!CurrentUser.IsAuthenticated)
+        {
+            <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-lg px-4 me-md-2">Đăng nhập hệ thống</a>
+        }
+        else
+        {
+            <div class="alert alert-info d-inline-block">
+                Xin chào, <strong>@CurrentUser.FullName</strong>! Vai trò hiện tại của bạn là: <strong>@CurrentUser.Role</strong>.
+            </div>
+        }
+    </div>
+</div>
+
+@if (CurrentUser.IsAuthenticated)
+{
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        @if (CurrentUser.IsInRole("Admin"))
+        {
+            <div class="col">
+                <div class="card h-100 border-primary shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">📊 Dashboard Thống Kê</h5>
+                        <p class="card-text text-muted">Xem tổng quan số phòng, lớp học, giảng viên, học viên và học phí toàn hệ thống.</p>
+                        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-primary">Mở Dashboard</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card h-100 border-primary shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">👥 Quản Lý Người Dùng</h5>
+                        <p class="card-text text-muted">Tạo mới, phân vai trò, gán Facility Manager cho từng cơ sở, khóa hoặc mở tài khoản.</p>
+                        <a asp-controller="Users" asp-action="Index" class="btn btn-outline-primary">Quản lý tài khoản</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (CurrentUser.IsInRole("GrandManager") || CurrentUser.IsInRole("Admin"))
+        {
+            <div class="col">
+                <div class="card h-100 border-success shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">📚 Lớp Học & Buổi Học</h5>
+                        <p class="card-text text-muted">Tạo lớp học mới, tự động sinh các buổi học với thuật toán chống trùng ca, phòng và giảng viên.</p>
+                        <a asp-controller="Classes" asp-action="Index" class="btn btn-outline-success">Xem danh sách lớp</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (CurrentUser.IsInRole("FacilityManager"))
+        {
+            <div class="col">
+                <div class="card h-100 border-info shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-info">🏢 Lưới Phòng Theo Ca</h5>
+                        <p class="card-text text-muted">Xem trực quan phòng trống, đang học hoặc đóng bảo trì theo từng ngày và ca học.</p>
+                        <a asp-controller="Rooms" asp-action="Index" class="btn btn-outline-info">Xem sơ đồ phòng</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (CurrentUser.IsInRole("Lecturer"))
+        {
+            <div class="col">
+                <div class="card h-100 border-warning shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-dark">📅 Lịch Dạy & Điểm Danh</h5>
+                        <p class="card-text text-muted">Theo dõi lịch dạy các buổi trong tuần và thực hiện điểm danh học viên đúng giờ.</p>
+                        <a asp-controller="Schedule" asp-action="Index" class="btn btn-outline-dark">Lịch dạy của tôi</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (CurrentUser.IsInRole("Student"))
+        {
+            <div class="col">
+                <div class="card h-100 border-secondary shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-secondary">📖 Cổng Học Viên</h5>
+                        <p class="card-text text-muted">Xem lịch học, kết quả điểm danh các buổi và thông tin học phí cần đóng.</p>
+                        <a asp-controller="StudentSchedule" asp-action="Index" class="btn btn-outline-secondary">Lịch học của tôi</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

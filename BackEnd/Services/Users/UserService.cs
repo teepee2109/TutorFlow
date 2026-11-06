@@ -22,7 +22,8 @@ public class UserService : IUserService
         string? search = null,
         bool? isActive = null,
         int page = 1,
-        int pageSize = 10)
+        int pageSize = 10,
+        int? facilityId = null)
     {
         try
         {
@@ -44,6 +45,15 @@ public class UserService : IUserService
             if (isActive.HasValue)
             {
                 query = query.Where(u => u.IsActive == isActive.Value);
+            }
+
+            if (facilityId.HasValue)
+            {
+                var selectedFacilityId = facilityId.Value;
+                query = query.Where(u =>
+                    _db.Facilities.Any(f => f.FacilityId == selectedFacilityId && f.ManagerId == u.UserId) ||
+                    u.ClassLecturers.Any(c => c.FacilityId == selectedFacilityId) ||
+                    u.Enrollments.Any(e => e.Class.FacilityId == selectedFacilityId));
             }
 
             var totalCount = await query.CountAsync();
@@ -85,7 +95,8 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             var mapped = SqlExceptionMapper.Map(ex);
-            return Result<UserPagedResult>.Fail(mapped?.Error ?? ScheduleError.ValidationError, mapped?.Message ?? ex.Message);
+            return Result<UserPagedResult>.Fail(mapped?.Error ?? ScheduleError.ValidationError,
+                mapped?.Message ?? "Không thể tải danh sách tài khoản lúc này.");
         }
     }
 
@@ -175,7 +186,8 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             var mapped = SqlExceptionMapper.Map(ex);
-            return Result<UserDto>.Fail(mapped?.Error ?? ScheduleError.ValidationError, mapped?.Message ?? ex.Message);
+            return Result<UserDto>.Fail(mapped?.Error ?? ScheduleError.ValidationError,
+                mapped?.Message ?? "Không thể tải thông tin tài khoản lúc này.");
         }
     }
 
@@ -227,7 +239,8 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             var mapped = SqlExceptionMapper.Map(ex);
-            return Result<UserDto>.Fail(mapped?.Error ?? ScheduleError.ValidationError, mapped?.Message ?? ex.Message);
+            return Result<UserDto>.Fail(mapped?.Error ?? ScheduleError.ValidationError,
+                mapped?.Message ?? "Không thể lưu thông tin tài khoản lúc này.");
         }
     }
 
@@ -293,7 +306,8 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             var mapped = SqlExceptionMapper.Map(ex);
-            return Result.Fail(mapped?.Error ?? ScheduleError.ValidationError, mapped?.Message ?? ex.Message);
+            return Result.Fail(mapped?.Error ?? ScheduleError.ValidationError,
+                mapped?.Message ?? "Không thể cập nhật trạng thái tài khoản lúc này.");
         }
     }
 
@@ -365,7 +379,8 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             var mapped = SqlExceptionMapper.Map(ex);
-            return Result.Fail(mapped?.Error ?? ScheduleError.ValidationError, mapped?.Message ?? ex.Message);
+            return Result.Fail(mapped?.Error ?? ScheduleError.ValidationError,
+                mapped?.Message ?? "Không thể cập nhật phân công cơ sở lúc này.");
         }
     }
 

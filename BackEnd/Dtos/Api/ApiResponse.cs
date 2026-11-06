@@ -64,6 +64,12 @@ public sealed class RoleOptionDto
     public string RoleName { get; init; } = string.Empty;
 }
 
+public sealed class FacilityOptionDto
+{
+    public int FacilityId { get; init; }
+    public string FacilityName { get; init; } = string.Empty;
+}
+
 public sealed class FacilityItemDto
 {
     public int FacilityId { get; init; }
@@ -83,6 +89,9 @@ public sealed class FacilitiesDataDto
 
 public sealed class AdminDashboardDto
 {
+    public DateOnly TargetDate { get; init; }
+    public int? FacilityId { get; init; }
+    public string? FacilityName { get; init; }
     public int? TotalRooms { get; init; }
     public int? OpenRooms { get; init; }
     public int? ClosedRooms { get; init; }
@@ -91,4 +100,5 @@ public sealed class AdminDashboardDto
     public int? ActiveStudents { get; init; }
     public int? PendingChangeRequests { get; init; }
     public decimal TotalUnpaidTuition { get; init; }
+    public List<BackEnd.Dtos.RoomShiftStatusDto> RoomShiftStatuses { get; init; } = new();
 }

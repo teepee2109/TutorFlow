@@ -38,11 +38,11 @@
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
         <form method="get" asp-controller="Users" asp-action="Index" class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small text-muted">Tìm kiếm (Tên, Email, SĐT)</label>
                 <input type="text" name="search" value="@Model.Search" class="form-control" placeholder="Nhập từ khóa..." />
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small text-muted">Vai trò</label>
                 <select name="roleFilter" class="form-select">
                     <option value="">-- Tất cả vai trò --</option>
@@ -53,12 +53,22 @@
                     <option value="Student" selected="@(Model.RoleFilter == "Student")">Student (Học viên)</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small text-muted">Trạng thái</label>
                 <select name="isActive" class="form-select">
                     <option value="">-- Tất cả trạng thái --</option>
                     <option value="true" selected="@(Model.IsActive == true)">🟢 Đang hoạt động</option>
                     <option value="false" selected="@(Model.IsActive == false)">🔴 Đang bị khóa</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted">Cơ sở liên quan</label>
+                <select name="facilityId" class="form-select">
+                    <option value="">-- Tất cả cơ sở --</option>
+                    @foreach (var facility in Model.FacilityOptions)
+                    {
+                        <option value="@facility.Value" selected="@facility.Selected">@facility.Text</option>
+                    }
                 </select>
             </div>
             <div class="col-md-2 d-flex align-items-end">
@@ -156,6 +166,7 @@
                                       asp-route-roleFilter="@Model.RoleFilter"
                                       asp-route-search="@Model.Search"
                                       asp-route-isActive="@Model.IsActive"
+                                      asp-route-facilityId="@Model.FacilityId"
                                       asp-route-currentPage="@Model.CurrentPage" 
                                       class="d-inline">
                                     @Html.AntiForgeryToken()
@@ -174,6 +185,7 @@
                                       asp-route-roleFilter="@Model.RoleFilter"
                                       asp-route-search="@Model.Search"
                                       asp-route-isActive="@Model.IsActive"
+                                      asp-route-facilityId="@Model.FacilityId"
                                       asp-route-currentPage="@Model.CurrentPage" 
                                       class="d-inline"
                                       onsubmit="return confirm('Bạn có chắc chắn muốn xóa người dùng @user.FullName? Thao tác này là xóa mềm.');">
@@ -193,6 +205,7 @@
                                               asp-route-roleFilter="@Model.RoleFilter"
                                               asp-route-search="@Model.Search"
                                               asp-route-isActive="@Model.IsActive"
+                                              asp-route-facilityId="@Model.FacilityId"
                                               asp-route-currentPage="@Model.CurrentPage">
                                             @Html.AntiForgeryToken()
                                             <div class="modal-header">
@@ -235,7 +248,8 @@
                            asp-route-page="@p" 
                            asp-route-roleFilter="@Model.RoleFilter"
                            asp-route-search="@Model.Search"
-                           asp-route-isActive="@Model.IsActive">@p</a>
+                           asp-route-isActive="@Model.IsActive"
+                           asp-route-facilityId="@Model.FacilityId">@p</a>
                     </li>
                 }
             </ul>

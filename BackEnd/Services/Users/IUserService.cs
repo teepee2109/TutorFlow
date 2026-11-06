@@ -9,7 +9,8 @@ public interface IUserService
         string? search = null,
         bool? isActive = null,
         int page = 1,
-        int pageSize = 10);
+        int pageSize = 10,
+        int? facilityId = null);
 
     Task<Result<UserDto>> GetUserByIdAsync(int id);
 

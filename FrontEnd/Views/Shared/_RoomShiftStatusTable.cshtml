@@ -1,0 +1,55 @@
+@model TutorFlow.Web.Models.AdminDashboardViewModel
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-white fw-bold">🗓️ Sơ đồ phòng và ca — @Model.TargetDate.ToString("dd/MM/yyyy")</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    @if (!Model.FacilityId.HasValue)
+                    {
+                        <th>Cơ sở</th>
+                    }
+                    <th>Phòng</th>
+                    <th>Ca học</th>
+                    <th>Trạng thái</th>
+                    <th>Lớp</th>
+                    <th>Giảng viên</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.RoomShiftStatuses.Count == 0)
+                {
+                    <tr><td colspan="@(Model.FacilityId.HasValue ? 5 : 6)" class="text-center text-muted py-4">Không có dữ liệu phòng và ca.</td></tr>
+                }
+                @foreach (var slot in Model.RoomShiftStatuses.OrderBy(x => x.FacilityName).ThenBy(x => x.RoomNumber).ThenBy(x => x.ShiftId))
+                {
+                    <tr>
+                        @if (!Model.FacilityId.HasValue)
+                        {
+                            <td>@slot.FacilityName</td>
+                        }
+                        <td class="fw-semibold">@slot.RoomNumber <small class="text-muted">(@(slot.Capacity?.ToString() ?? "—") chỗ)</small></td>
+                        <td>@slot.ShiftName <small class="text-muted">@slot.StartTime.ToString("HH:mm")–@slot.EndTime.ToString("HH:mm")</small></td>
+                        <td>
+                            @if (slot.SlotStatus == "Occupied")
+                            {
+                                <span class="badge bg-primary">Đang sử dụng</span>
+                            }
+                            else if (slot.SlotStatus == "Closed for Maintenance")
+                            {
+                                <span class="badge bg-danger">Đóng bảo trì</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Còn trống</span>
+                            }
+                        </td>
+                        <td>@(slot.ClassName ?? "—")</td>
+                        <td>@(slot.LecturerName ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using BackEnd.Data.Entities;
+using BackEnd.Dtos;
 using Microsoft.EntityFrameworkCore;
 
 namespace BackEnd.Data;
@@ -41,6 +42,8 @@ public partial class TutorFlowDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
 
     public virtual DbSet<VwAdminStat> VwAdminStats { get; set; }
+
+    public virtual DbSet<RoomShiftStatusDto> RoomShiftStatuses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -271,11 +274,20 @@ public partial class TutorFlowDbContext : DbContext
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Users_Roles");
+
+            // Soft-deleted accounts are hidden by default throughout the application.
+            entity.HasQueryFilter(user => !user.IsDeleted);
         });
 
         modelBuilder.Entity<VwAdminStat>(entity =>
         {
             entity.ToView("vw_AdminStats");
+        });
+
+        modelBuilder.Entity<RoomShiftStatusDto>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView((string?)null);
         });
 
         OnModelCreatingPartial(modelBuilder);

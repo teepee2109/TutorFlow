@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TutorFlow.Web.Services;
+using TutorFlow.Web.Services.Api;
 
 namespace TutorFlow.Web.Controllers;
 
@@ -11,16 +12,29 @@ namespace TutorFlow.Web.Controllers;
 public class FacilityManagerController : Controller
 {
     private readonly ICurrentUser _currentUser;
+    private readonly TutorFlowApiClient _apiClient;
 
-    public FacilityManagerController(ICurrentUser currentUser)
+    public FacilityManagerController(ICurrentUser currentUser, TutorFlowApiClient apiClient)
     {
         _currentUser = currentUser;
+        _apiClient = apiClient;
     }
 
-    public IActionResult Index()
+    public async Task<IActionResult> Index(DateOnly? date)
     {
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.Today);
+        var result = await _apiClient.GetFacilityManagerDashboardAsync(targetDate);
+        if (!result.Success || result.Value == null)
+        {
+            ViewBag.ErrorMessage = result.Message;
+        }
+
         ViewData["Title"] = "Facility Manager Dashboard";
         ViewData["FacilityId"] = _currentUser.FacilityId;
-        return View();
+        return View(result.Value ?? new TutorFlow.Web.Models.AdminDashboardViewModel
+        {
+            FacilityId = _currentUser.FacilityId,
+            TargetDate = targetDate
+        });
     }
 }

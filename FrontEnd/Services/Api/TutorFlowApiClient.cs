@@ -23,7 +23,7 @@ public sealed class TutorFlowApiClient
         });
 
     public Task<ApiResponse<UserPagedResult>> GetUsersAsync(
-        string? roleFilter, string? search, bool? isActive, int page, int pageSize)
+        string? roleFilter, string? search, bool? isActive, int page, int pageSize, int? facilityId = null)
     {
         var query = new List<string>
         {
@@ -33,8 +33,12 @@ public sealed class TutorFlowApiClient
         if (!string.IsNullOrWhiteSpace(roleFilter)) query.Add($"roleFilter={Uri.EscapeDataString(roleFilter)}");
         if (!string.IsNullOrWhiteSpace(search)) query.Add($"search={Uri.EscapeDataString(search)}");
         if (isActive.HasValue) query.Add($"isActive={isActive.Value.ToString().ToLowerInvariant()}");
+        if (facilityId.HasValue) query.Add($"facilityId={facilityId.Value}");
         return SendAsync<UserPagedResult>(HttpMethod.Get, $"api/users?{string.Join("&", query)}");
     }
+
+    public Task<ApiResponse<List<FacilityOptionViewModel>>> GetFacilityOptionsAsync() =>
+        SendAsync<List<FacilityOptionViewModel>>(HttpMethod.Get, "api/users/facility-options");
 
     public Task<ApiResponse<List<RoleOptionDto>>> GetRolesAsync() =>
         SendAsync<List<RoleOptionDto>>(HttpMethod.Get, "api/users/roles");
@@ -63,8 +67,11 @@ public sealed class TutorFlowApiClient
     public Task<ApiResponse> AssignFacilityManagerAsync(int facilityId, int? managerId) =>
         SendAsync(HttpMethod.Put, $"api/users/facilities/{facilityId}/manager", new { ManagerId = managerId });
 
-    public Task<ApiResponse<AdminDashboardViewModel>> GetAdminDashboardAsync() =>
-        SendAsync<AdminDashboardViewModel>(HttpMethod.Get, "api/admin/dashboard");
+    public Task<ApiResponse<AdminDashboardViewModel>> GetAdminDashboardAsync(DateOnly date) =>
+        SendAsync<AdminDashboardViewModel>(HttpMethod.Get, $"api/admin/dashboard?date={date:yyyy-MM-dd}");
+
+    public Task<ApiResponse<AdminDashboardViewModel>> GetFacilityManagerDashboardAsync(DateOnly date) =>
+        SendAsync<AdminDashboardViewModel>(HttpMethod.Get, $"api/facility-manager/dashboard?date={date:yyyy-MM-dd}");
 
     private async Task<ApiResponse<T>> SendAsync<T>(HttpMethod method, string path, object? body = null)
     {
@@ -87,7 +94,7 @@ public sealed class TutorFlowApiClient
                 return new ApiResponse<T>
                 {
                     Success = false,
-                    Message = $"BackEnd API trả về dữ liệu không phải JSON hợp lệ (HTTP {(int)response.StatusCode}, Content-Type {response.Content.Headers.ContentType?.MediaType ?? "không có"})."
+                    Message = BuildNonJsonResponseMessage(response)
                 };
             }
 
@@ -129,7 +136,7 @@ public sealed class TutorFlowApiClient
                 return new ApiResponse
                 {
                     Success = false,
-                    Message = $"BackEnd API trả về dữ liệu không phải JSON hợp lệ (HTTP {(int)response.StatusCode}, Content-Type {response.Content.Headers.ContentType?.MediaType ?? "không có"})."
+                    Message = BuildNonJsonResponseMessage(response)
                 };
             }
 
@@ -148,6 +155,16 @@ public sealed class TutorFlowApiClient
         {
             return new ApiResponse { Success = false, Message = "Không kết nối được tới BackEnd API." };
         }
+    }
+
+    private static string BuildNonJsonResponseMessage(HttpResponseMessage response)
+    {
+        if ((int)response.StatusCode == 401)
+        {
+            return "BackEnd API từ chối xác thực (HTTP 401). Hãy đăng xuất rồi đăng nhập lại; đồng thời kiểm tra BackEnd đang chạy ở HTTPS localhost:7002.";
+        }
+
+        return $"BackEnd API trả về dữ liệu không phải JSON hợp lệ (HTTP {(int)response.StatusCode}, Content-Type {response.Content.Headers.ContentType?.MediaType ?? "không có"}).";
     }
 }
 

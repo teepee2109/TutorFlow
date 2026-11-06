@@ -18,6 +18,14 @@
     </div>
 </div>
 
+<form method="get" asp-controller="Admin" asp-action="Index" class="d-flex justify-content-end align-items-end gap-2 mb-3">
+    <div>
+        <label class="form-label small text-muted mb-1" for="dashboardDate">Ngày xem sơ đồ phòng</label>
+        <input id="dashboardDate" type="date" name="date" value="@Model.TargetDate.ToString("yyyy-MM-dd")" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-outline-primary">Xem ngày</button>
+</form>
+
 @if (ViewBag.ErrorMessage != null)
 {
     <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
@@ -74,6 +82,8 @@
         </div>
     </div>
 </div>
+
+<partial name="_RoomShiftStatusTable" model="Model" />
 
 <div class="card border-0 shadow-sm mt-4">
     <div class="card-body p-4">

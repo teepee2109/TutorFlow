@@ -49,6 +49,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<BackEnd.Middleware.ApiExceptionMiddleware>();
 app.UseHttpsRedirection();
 
 app.UseAuthentication();

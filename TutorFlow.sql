@@ -657,25 +657,39 @@ INSERT INTO Roles (RoleName) VALUES
 ('Admin'), ('GrandManager'), ('FacilityManager'), ('Lecturer'), ('Student');
 GO
 
--- 12.2 Facilities (3 cơ sở)
+-- 12.2 Facilities (20 cơ sở theo yêu cầu seed data; 3 cơ sở đầu giữ nguyên)
 INSERT INTO Facilities (FacilityName, Address) VALUES
 (N'Cơ sở 1', N'123 Nguyễn Huệ, Quận 1, TP.HCM'),
 (N'Cơ sở 2', N'456 Lê Duẩn, Quận 1, TP.HCM'),
 (N'Cơ sở 3', N'789 Võ Văn Ngân, TP.Thủ Đức, TP.HCM');
+
+DECLARE @FacilityNumber INT = 4;
+WHILE @FacilityNumber <= 20
+BEGIN
+    INSERT INTO Facilities (FacilityName, Address)
+    VALUES (CONCAT(N'Cơ sở ', @FacilityNumber), CONCAT(N'Địa chỉ mẫu cơ sở ', @FacilityNumber, N', TP.HCM'));
+    SET @FacilityNumber += 1;
+END
 GO
 
--- 12.3 Rooms (3 cơ sở x 6 phòng = 18 phòng: P101-P106, P201-P206, P301-P306)
-DECLARE @f INT = 1;
-WHILE @f <= 3
+-- 12.3 Rooms (20 cơ sở x 2 phòng = 40 phòng)
+DECLARE @FacilityId INT = 1;
+WHILE @FacilityId <= 20
 BEGIN
-    DECLARE @r INT = 1;
-    WHILE @r <= 6
+    DECLARE @RoomNumber INT = 1;
+    WHILE @RoomNumber <= 2
     BEGIN
         INSERT INTO Rooms (FacilityId, RoomNumber, Capacity, Condition)
-        VALUES (@f, CONCAT('P', @f, '0', @r), 30, 'Open');
-        SET @r += 1;
+        VALUES
+        (
+            @FacilityId,
+            CONCAT('P', RIGHT(CONCAT('00', @FacilityId), 2), RIGHT(CONCAT('00', @RoomNumber), 2)),
+            30,
+            'Open'
+        );
+        SET @RoomNumber += 1;
     END
-    SET @f += 1;
+    SET @FacilityId += 1;
 END
 GO
 
@@ -696,9 +710,253 @@ INSERT INTO SystemSettings (SettingKey, SettingValue, Description) VALUES
 ('TUITION_PER_SESSION', '200000', N'Học phí mặc định mỗi buổi học (VNĐ)');
 GO
 
--- 12.7 Admin mặc định (mật khẩu Dev: Dev@12345 hash BCrypt: $2a$11$w8j0b8u50/J35G0Uu36zCug3l2U3m4o3Pj5y0Z5G1h3Y2N7h2U4m.)
--- Để tránh phụ thuộc hash lúc chạy script, tạm để placeholder $2a$11$eAK8nN9eE3Gz2uV3o0hGveq1K9D8qF8wJ1rA2bC3dE4fG5h6i7j8k
--- (DevSeeder trong code C# sẽ update chuẩn theo BCrypt)
+-- 12.7 Seed tài khoản và dữ liệu nghiệp vụ.
+-- Giữ nguyên số lượng danh mục Roles (5), Shifts (3), Subjects (5) và SystemSettings (1).
+-- Mật khẩu mẫu của các tài khoản: Dev@12345.
+DECLARE @DemoPasswordHash NVARCHAR(255) = N'$2a$11$9a.BKnjMG.j5tmrIiZdSc..d0z/Yg8WPLN9vd1SQRkjL9ld.URIey';
+DECLARE @AdminRoleId INT;
+DECLARE @GrandManagerRoleId INT;
+DECLARE @FacilityManagerRoleId INT;
+DECLARE @LecturerRoleId INT;
+DECLARE @StudentRoleId INT;
+DECLARE @Today DATE = CAST(GETDATE() AS DATE);
+DECLARE @i INT;
+
+SELECT
+    @AdminRoleId = MAX(CASE WHEN RoleName = N'Admin' THEN RoleId END),
+    @GrandManagerRoleId = MAX(CASE WHEN RoleName = N'GrandManager' THEN RoleId END),
+    @FacilityManagerRoleId = MAX(CASE WHEN RoleName = N'FacilityManager' THEN RoleId END),
+    @LecturerRoleId = MAX(CASE WHEN RoleName = N'Lecturer' THEN RoleId END),
+    @StudentRoleId = MAX(CASE WHEN RoleName = N'Student' THEN RoleId END)
+FROM Roles;
+
 INSERT INTO Users (FullName, Email, PasswordHash, RoleId, IsActive, IsDeleted)
-VALUES (N'System Admin', 'admin@tutorflow.local', '$2a$11$w8j0b8u50/J35G0Uu36zCug3l2U3m4o3Pj5y0Z5G1h3Y2N7h2U4m.', 1, 1, 0);
+VALUES (N'System Admin', N'admin@tutorflow.local', @DemoPasswordHash, @AdminRoleId, 1, 0);
+
+INSERT INTO Users (FullName, Email, PasswordHash, RoleId, IsActive, IsDeleted)
+VALUES (N'Grand Manager', N'gm@tutorflow.local', @DemoPasswordHash, @GrandManagerRoleId, 1, 0);
+
+SET @i = 1;
+WHILE @i <= 20
+BEGIN
+    INSERT INTO Users (FullName, Email, PasswordHash, PhoneNumber, RoleId, IsActive, IsDeleted)
+    VALUES
+    (
+        CONCAT(N'Facility Manager ', @i),
+        CONCAT(N'fm', @i, N'@tutorflow.local'),
+        @DemoPasswordHash,
+        CONCAT(N'090200', RIGHT(CONCAT(N'00', @i), 2)),
+        @FacilityManagerRoleId,
+        1,
+        0
+    );
+    SET @i += 1;
+END
+
+SET @i = 1;
+WHILE @i <= 10
+BEGIN
+    INSERT INTO Users (FullName, Email, PasswordHash, PhoneNumber, RoleId, IsActive, IsDeleted)
+    VALUES
+    (
+        CONCAT(N'Giảng viên mẫu ', @i),
+        CONCAT(N'lecturer', @i, N'@tutorflow.local'),
+        @DemoPasswordHash,
+        CONCAT(N'091300', RIGHT(CONCAT(N'00', @i), 2)),
+        @LecturerRoleId,
+        1,
+        0
+    );
+    SET @i += 1;
+END
+
+SET @i = 1;
+WHILE @i <= 20
+BEGIN
+    INSERT INTO Users (FullName, Email, PasswordHash, PhoneNumber, RoleId, IsActive, IsDeleted)
+    VALUES
+    (
+        CONCAT(N'Học viên mẫu ', @i),
+        CONCAT(N'student', @i, N'@tutorflow.local'),
+        @DemoPasswordHash,
+        CONCAT(N'098400', RIGHT(CONCAT(N'00', @i), 2)),
+        @StudentRoleId,
+        1,
+        0
+    );
+    SET @i += 1;
+END
+
+-- Gán mỗi Facility Manager một cơ sở (mỗi người phụ trách tối đa một cơ sở).
+UPDATE f
+SET ManagerId = fm.UserId
+FROM Facilities AS f
+JOIN Users AS fm
+    ON fm.Email = CONCAT(N'fm', f.FacilityId, N'@tutorflow.local');
+
+DECLARE @DemoRows TABLE (RowNumber INT NOT NULL PRIMARY KEY);
+INSERT INTO @DemoRows (RowNumber) VALUES
+(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+-- 12.8 Classes: 20 lớp trải trên 20 cơ sở.
+;WITH RankedSubjects AS
+(
+    SELECT SubjectId, ROW_NUMBER() OVER (ORDER BY SubjectId) AS RowNumber
+    FROM Subjects
+),
+RankedShifts AS
+(
+    SELECT ShiftId, ROW_NUMBER() OVER (ORDER BY ShiftId) AS RowNumber
+    FROM Shifts
+)
+INSERT INTO Classes
+    (ClassName, SubjectId, LecturerId, FacilityId, RoomId, ShiftId, DaysOfWeek, StartDate, EndDate, Status, CreatedBy)
+SELECT
+    CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2)),
+    sb.SubjectId,
+    lecturer.UserId,
+    f.FacilityId,
+    rm.RoomId,
+    sh.ShiftId,
+    N'2,3,4,5,6,7,8',
+    DATEADD(DAY, -30, @Today),
+    DATEADD(DAY, 180, @Today),
+    N'Active',
+    gm.UserId
+FROM @DemoRows AS demo
+JOIN Facilities AS f
+    ON f.FacilityName = CONCAT(N'Cơ sở ', demo.RowNumber)
+JOIN Rooms AS rm
+    ON rm.FacilityId = f.FacilityId
+   AND rm.RoomNumber = CONCAT('P', RIGHT(CONCAT('00', demo.RowNumber), 2), '01')
+JOIN Users AS lecturer
+    ON lecturer.Email = CONCAT(N'lecturer', ((demo.RowNumber - 1) % 10) + 1, N'@tutorflow.local')
+JOIN Users AS gm ON gm.Email = N'gm@tutorflow.local'
+JOIN RankedSubjects AS sb
+    ON sb.RowNumber = ((demo.RowNumber - 1) % (SELECT COUNT(*) FROM Subjects)) + 1
+JOIN RankedShifts AS sh
+    ON sh.RowNumber = ((demo.RowNumber - 1) % (SELECT COUNT(*) FROM Shifts)) + 1;
+
+-- 12.9 ClassSessions: một buổi đã hoàn thành cho mỗi lớp, trên các ngày riêng biệt.
+INSERT INTO ClassSessions (ClassId, SessionDate, RoomId, ShiftId, LecturerId, Status)
+SELECT
+    c.ClassId,
+    DATEADD(DAY, demo.RowNumber - 20, @Today),
+    c.RoomId,
+    c.ShiftId,
+    c.LecturerId,
+    N'Completed'
+FROM @DemoRows AS demo
+JOIN Classes AS c
+    ON c.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2));
+
+-- 12.10 Enrollments: 20 học viên, mỗi học viên tham gia một lớp.
+INSERT INTO Enrollments (StudentId, ClassId, EnrollDate, Status)
+SELECT
+    st.UserId,
+    c.ClassId,
+    DATEADD(DAY, -30, @Today),
+    N'Active'
+FROM @DemoRows AS demo
+JOIN Users AS st
+    ON st.Email = CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
+JOIN Classes AS c
+    ON c.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2));
+
+-- 12.11 Attendance: mỗi học viên được điểm danh tại buổi của lớp.
+INSERT INTO Attendance (SessionId, StudentId, Status, Note, RecordedBy)
+SELECT
+    cs.SessionId,
+    enrollment.StudentId,
+    N'Present',
+    N'Dữ liệu điểm danh mẫu',
+    cs.LecturerId
+FROM Enrollments AS enrollment
+JOIN ClassSessions AS cs ON cs.ClassId = enrollment.ClassId;
+
+-- 12.12 Tuitions: 20 kỳ học phí; một nửa đã thanh toán, một nửa còn nợ.
+INSERT INTO Tuitions
+    (StudentId, ClassId, PeriodFrom, PeriodTo, SessionsAttended, AmountPerSession, PaymentStatus, DueDate)
+SELECT
+    enrollment.StudentId,
+    enrollment.ClassId,
+    DATEADD(DAY, -30, @Today),
+    @Today,
+    1,
+    200000,
+    CASE WHEN TRY_CONVERT(INT, RIGHT(c.ClassName, 2)) % 2 = 0 THEN N'Unpaid' ELSE N'Paid' END,
+    DATEADD(DAY, 7, @Today)
+FROM Enrollments AS enrollment
+JOIN Classes AS c ON c.ClassId = enrollment.ClassId;
+
+-- 12.13 Payments: 20 giao dịch; khoản chưa thanh toán có giao dịch trả một phần.
+INSERT INTO Payments (TuitionId, AmountPaid, PaymentDate, PaymentMethod, ReceivedBy, ReceiptNumber)
+SELECT
+    tuition.TuitionId,
+    CASE WHEN tuition.PaymentStatus = N'Paid' THEN tuition.TotalAmount ELSE tuition.TotalAmount / 2 END,
+    DATEADD(DAY, -1, GETDATE()),
+    CASE WHEN tuition.TuitionId % 2 = 0 THEN N'Chuyển khoản' ELSE N'Tiền mặt' END,
+    gm.UserId,
+    CONCAT(N'TF-DEMO-', RIGHT(CONCAT(N'0000', tuition.TuitionId), 4))
+FROM Tuitions AS tuition
+CROSS JOIN Users AS gm
+WHERE gm.Email = N'gm@tutorflow.local';
+
+-- 12.14 RoomChangeRequests: 20 yêu cầu với đủ trạng thái chờ duyệt/đã duyệt/từ chối.
+INSERT INTO RoomChangeRequests
+    (LecturerId, ClassId, SessionId, CurrentRoomId, RequestedRoomId, CurrentShiftId,
+     RequestedShiftId, Reason, Status, ReviewedBy, ReviewedAt, ReviewNote)
+SELECT
+    c.LecturerId,
+    c.ClassId,
+    cs.SessionId,
+    c.RoomId,
+    requestedRoom.RoomId,
+    c.ShiftId,
+    ((c.ShiftId % (SELECT COUNT(*) FROM Shifts)) + 1),
+    N'Yêu cầu đổi phòng/ca mẫu',
+    CASE TRY_CONVERT(INT, RIGHT(c.ClassName, 2)) % 3
+        WHEN 0 THEN N'Approved'
+        WHEN 1 THEN N'Pending'
+        ELSE N'Rejected'
+    END,
+    CASE WHEN TRY_CONVERT(INT, RIGHT(c.ClassName, 2)) % 3 = 1 THEN NULL ELSE gm.UserId END,
+    CASE WHEN TRY_CONVERT(INT, RIGHT(c.ClassName, 2)) % 3 = 1 THEN NULL ELSE GETDATE() END,
+    CASE WHEN TRY_CONVERT(INT, RIGHT(c.ClassName, 2)) % 3 = 1 THEN NULL ELSE N'Đã xử lý yêu cầu mẫu' END
+FROM @DemoRows AS demo
+JOIN Classes AS c
+    ON c.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2))
+JOIN ClassSessions AS cs ON cs.ClassId = c.ClassId
+JOIN Rooms AS requestedRoom
+    ON requestedRoom.FacilityId = c.FacilityId
+   AND requestedRoom.RoomNumber = CONCAT('P', RIGHT(CONCAT('00', demo.RowNumber), 2), '02')
+CROSS JOIN Users AS gm
+WHERE gm.Email = N'gm@tutorflow.local';
+
+-- Kiểm tra dữ liệu mẫu theo yêu cầu: tối thiểu 20 bản ghi mỗi bảng nghiệp vụ.
+IF (SELECT COUNT_BIG(*) FROM Users) < 20
+    OR (SELECT COUNT_BIG(*) FROM Facilities) < 20
+    OR (SELECT COUNT_BIG(*) FROM Rooms) < 20
+    OR (SELECT COUNT_BIG(*) FROM Classes) < 20
+    OR (SELECT COUNT_BIG(*) FROM ClassSessions) < 20
+    OR (SELECT COUNT_BIG(*) FROM Enrollments) < 20
+    OR (SELECT COUNT_BIG(*) FROM Attendance) < 20
+    OR (SELECT COUNT_BIG(*) FROM Tuitions) < 20
+    OR (SELECT COUNT_BIG(*) FROM Payments) < 20
+    OR (SELECT COUNT_BIG(*) FROM RoomChangeRequests) < 20
+BEGIN
+    THROW 51000, N'Dữ liệu mẫu chưa đạt tối thiểu 20 bản ghi cho mỗi bảng nghiệp vụ.', 1;
+END
+
+SELECT N'Users' AS TableName, COUNT_BIG(*) AS RecordCount FROM Users
+UNION ALL SELECT N'Facilities', COUNT_BIG(*) FROM Facilities
+UNION ALL SELECT N'Rooms', COUNT_BIG(*) FROM Rooms
+UNION ALL SELECT N'Classes', COUNT_BIG(*) FROM Classes
+UNION ALL SELECT N'ClassSessions', COUNT_BIG(*) FROM ClassSessions
+UNION ALL SELECT N'Enrollments', COUNT_BIG(*) FROM Enrollments
+UNION ALL SELECT N'Attendance', COUNT_BIG(*) FROM Attendance
+UNION ALL SELECT N'Tuitions', COUNT_BIG(*) FROM Tuitions
+UNION ALL SELECT N'Payments', COUNT_BIG(*) FROM Payments
+UNION ALL SELECT N'RoomChangeRequests', COUNT_BIG(*) FROM RoomChangeRequests;
 GO

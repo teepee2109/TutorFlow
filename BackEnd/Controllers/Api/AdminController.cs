@@ -18,26 +18,18 @@ public sealed class AdminController : ControllerBase
     }
 
     [HttpGet("dashboard")]
-    public async Task<IActionResult> GetDashboard()
+    public async Task<IActionResult> GetDashboard([FromQuery] DateOnly? date)
     {
-        var result = await _dashboardService.GetAdminStatsAsync();
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.Today);
+        var result = await _dashboardService.GetAdminStatsAsync(targetDate);
         if (!result.Success || result.Value == null)
         {
-            return NotFound(ApiResponse<AdminDashboardDto>.Fail(result.Message));
+            var response = ApiResponse<AdminDashboardDto>.Fail(result.Message);
+            return result.Error == TutorFlow.Services.Common.ScheduleError.NotFound
+                ? NotFound(response)
+                : StatusCode(StatusCodes.Status500InternalServerError, response);
         }
 
-        var stats = result.Value;
-        var dto = new AdminDashboardDto
-        {
-            TotalRooms = stats.TotalRooms,
-            OpenRooms = stats.OpenRooms,
-            ClosedRooms = stats.ClosedRooms,
-            ActiveClasses = stats.ActiveClasses,
-            ActiveLecturers = stats.ActiveLecturers,
-            ActiveStudents = stats.ActiveStudents,
-            PendingChangeRequests = stats.PendingChangeRequests,
-            TotalUnpaidTuition = stats.TotalUnpaidTuition
-        };
-        return Ok(ApiResponse<AdminDashboardDto>.Ok(dto));
+        return Ok(ApiResponse<AdminDashboardDto>.Ok(result.Value));
     }
 }

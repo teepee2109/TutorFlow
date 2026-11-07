@@ -52,6 +52,9 @@ builder.Services.AddScoped<BackEnd.Services.Rooms.IChangeRequestReviewService, B
 builder.Services.AddScoped<BackEnd.Services.Lecturer.ILecturerScheduleService, BackEnd.Services.Lecturer.LecturerScheduleService>();
 builder.Services.AddScoped<BackEnd.Services.Lecturer.IAttendanceService, BackEnd.Services.Lecturer.AttendanceService>();
 builder.Services.AddScoped<BackEnd.Services.Lecturer.IChangeRequestService, BackEnd.Services.Lecturer.ChangeRequestService>();
+builder.Services.AddScoped<BackEnd.Services.Enrollment.IEnrollmentService, BackEnd.Services.Enrollment.EnrollmentService>();
+builder.Services.AddScoped<BackEnd.Services.Tuition.ITuitionService, BackEnd.Services.Tuition.TuitionService>();
+builder.Services.AddScoped<BackEnd.Services.StudentPortal.IStudentPortalService, BackEnd.Services.StudentPortal.StudentPortalService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<BackEnd.Services.Common.ICurrentUser, BackEnd.Services.Common.CurrentUser>();
 

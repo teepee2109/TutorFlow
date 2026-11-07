@@ -290,6 +290,12 @@ public partial class TutorFlowDbContext : DbContext
             entity.ToView((string?)null);
         });
 
+        modelBuilder.Entity<StudentAttendanceTuitionDto>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView((string?)null);
+        });
+
         OnModelCreatingPartial(modelBuilder);
     }
 

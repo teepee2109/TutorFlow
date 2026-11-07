@@ -1,11 +1,24 @@
+@model FrontEnd.Models.StudentTuitionPageViewModel
 @{
     ViewData["Title"] = "Học phí của tôi";
 }
 
-<div class="container-fluid py-4">
-    <h4 class="mb-3"><i class="bi bi-cash-stack me-2"></i>Học phí của tôi</h4>
-    <div class="alert alert-info">
-        <i class="bi bi-hammer me-2"></i>
-        <strong>Dev E đang triển khai.</strong> Bảng học phí và lịch sử thanh toán của học viên sẽ có ở đây.
-    </div>
+<div class="mb-4"><h2 class="fw-bold mb-1">💳 Học phí của tôi</h2><p class="text-muted mb-0">Xem các khoản phải thu và lịch sử thanh toán.</p></div>
+@if (ViewBag.ErrorMessage is string error) { <div class="alert alert-danger">@error</div> }
+<div class="row row-cols-1 row-cols-xl-2 g-3">
+    @if (Model.Records.Count == 0) { <div class="col-12"><div class="alert alert-info">Bạn chưa có khoản học phí được phát hành.</div></div> }
+    @foreach (var item in Model.Records)
+    {
+        <div class="col"><div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between"><strong>@item.ClassName</strong>@if (item.PaymentStatus == "Paid") { <span class="badge bg-success">Đã thanh toán</span> } else { <span class="badge bg-warning text-dark">Chưa thanh toán đủ</span> }</div>
+            <div class="card-body">
+                <div class="small text-muted mb-3">Kỳ @item.PeriodFrom.ToString("dd/MM/yyyy") – @item.PeriodTo.ToString("dd/MM/yyyy") · Hạn @(item.DueDate?.ToString("dd/MM/yyyy") ?? "—")</div>
+                <dl class="row mb-0"><dt class="col-6">Số buổi có mặt</dt><dd class="col-6 text-end">@item.SessionsAttended</dd><dt class="col-6">Tổng học phí</dt><dd class="col-6 text-end">@item.TotalAmount.ToString("N0") VND</dd><dt class="col-6">Đã thanh toán</dt><dd class="col-6 text-end">@item.AmountPaid.ToString("N0") VND</dd><dt class="col-6">Còn phải thu</dt><dd class="col-6 text-end fw-bold">@item.RemainingAmount.ToString("N0") VND</dd></dl>
+                @if (item.Payments.Count > 0)
+                {
+                    <hr /><strong class="small">Lịch sử thanh toán</strong><ul class="small mb-0 mt-2">@foreach (var payment in item.Payments) { <li>@payment.PaymentDate.ToString("dd/MM/yyyy HH:mm") · @payment.AmountPaid.ToString("N0") VND · @(payment.PaymentMethod ?? "Không rõ phương thức")@(string.IsNullOrWhiteSpace(payment.ReceiptNumber) ? "" : $" · Biên lai {payment.ReceiptNumber}")</li> }</ul>
+                }
+            </div>
+        </div></div>
+    }
 </div>

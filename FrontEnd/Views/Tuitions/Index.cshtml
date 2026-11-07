@@ -1,13 +1,83 @@
+@model FrontEnd.Models.TuitionsPageViewModel
 @{
     ViewData["Title"] = "Học phí & Thanh toán";
+    var canIssue = User.IsInRole("GrandManager");
 }
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Học phí &amp; Thanh toán</h4>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div><h2 class="fw-bold mb-1">💰 Học phí & Thanh toán</h2><p class="text-muted mb-0">Học phí tính theo số buổi Present trong kỳ đã chọn.</p></div>
+</div>
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
+@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
+@if (ViewBag.PreviewErrorMessage is string previewError) { <div class="alert alert-danger">Không tải được bảng tính học phí: @previewError</div> }
+@if (ViewBag.ErrorMessage is string loadError) { <div class="alert alert-danger">@loadError</div> }
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <form method="get" class="d-flex flex-wrap align-items-end gap-2">
+            <div><label class="form-label" for="from">Từ ngày</label><input id="from" name="from" type="date" value="@Model.PeriodFrom.ToString("yyyy-MM-dd")" class="form-control" /></div>
+            <div><label class="form-label" for="to">Đến ngày</label><input id="to" name="to" type="date" value="@Model.PeriodTo.ToString("yyyy-MM-dd")" class="form-control" /></div>
+            <button class="btn btn-outline-primary">Xem kỳ</button>
+        </form>
+        @if (canIssue)
+        {
+            <form method="post" asp-action="Issue">
+                @Html.AntiForgeryToken()<input type="hidden" name="PeriodFrom" value="@Model.PeriodFrom.ToString("yyyy-MM-dd")" /><input type="hidden" name="PeriodTo" value="@Model.PeriodTo.ToString("yyyy-MM-dd")" />
+                <button class="btn btn-primary" type="submit" @(Model.Preview.Count == 0 ? "disabled" : null)>Phát hành các khoản chưa có</button>
+            </form>
+        }
     </div>
-    <div class="alert alert-info" role="alert">
-        <i class="bi bi-hammer me-2"></i>
-        <strong>Dev E đang triển khai.</strong> Chức năng học phí và thanh toán (F9) sẽ có ở đây.
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold">Bảng tính theo điểm danh</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Học viên</th><th>Lớp</th><th>Có mặt</th><th>Vắng phép</th><th>Vắng không phép</th><th>Đơn giá</th><th>Tạm tính</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+                @if (Model.Preview.Count == 0) { <tr><td colspan="8" class="text-center text-muted py-4">Không có dữ liệu điểm danh hoàn tất trong kỳ.</td></tr> }
+                @foreach (var item in Model.Preview)
+                {
+                    <tr><td>@item.StudentName</td><td>@item.ClassName</td><td>@item.PresentCount</td><td>@item.ExcusedCount</td><td>@item.UnexcusedCount</td><td>@item.AmountPerSession.ToString("N0") VND</td><td class="fw-semibold">@item.TuitionAmount.ToString("N0") VND</td><td>@if (item.AlreadyIssued) { <span class="badge bg-secondary">Đã phát hành</span> } else { <span class="badge bg-info text-dark">Chưa phát hành</span> }</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white fw-semibold">Các khoản học phí đã phát hành</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Học viên / lớp</th><th>Kỳ</th><th>Số buổi</th><th>Tổng phí</th><th>Đã thu</th><th>Còn lại</th><th>Trạng thái</th><th>Thanh toán</th></tr></thead>
+            <tbody>
+                @if (Model.Records.Count == 0) { <tr><td colspan="8" class="text-center text-muted py-4">Chưa có khoản học phí nào trong kỳ.</td></tr> }
+                @foreach (var record in Model.Records)
+                {
+                    <tr>
+                        <td><strong>@record.StudentName</strong><div class="small text-muted">@record.ClassName</div></td>
+                        <td>@record.PeriodFrom.ToString("dd/MM/yyyy") – @record.PeriodTo.ToString("dd/MM/yyyy")</td>
+                        <td>@record.SessionsAttended</td><td>@record.TotalAmount.ToString("N0") VND</td><td>@record.AmountPaid.ToString("N0") VND</td><td class="fw-semibold">@record.RemainingAmount.ToString("N0") VND</td>
+                        <td>@if (record.PaymentStatus == "Paid") { <span class="badge bg-success">Đã thanh toán</span> } else { <span class="badge bg-warning text-dark">Chưa thanh toán đủ</span> }<div class="small text-muted">Hạn: @(record.DueDate?.ToString("dd/MM/yyyy") ?? "—")</div></td>
+                        <td>
+                            @if (canIssue && record.RemainingAmount > 0)
+                            {
+                                <form method="post" asp-action="RecordPayment" class="d-flex flex-column gap-1">
+                                    @Html.AntiForgeryToken()<input type="hidden" name="TuitionId" value="@record.TuitionId" /><input type="hidden" name="from" value="@Model.PeriodFrom.ToString("yyyy-MM-dd")" /><input type="hidden" name="to" value="@Model.PeriodTo.ToString("yyyy-MM-dd")" />
+                                    <input name="AmountPaid" type="number" min="1" max="@record.RemainingAmount" value="@record.RemainingAmount" class="form-control form-control-sm" aria-label="Số tiền thu" required />
+                                    <input name="PaymentMethod" maxlength="50" class="form-control form-control-sm" placeholder="Tiền mặt / chuyển khoản" />
+                                    <input name="ReceiptNumber" maxlength="50" class="form-control form-control-sm" placeholder="Mã biên lai" />
+                                    <button class="btn btn-sm btn-success">Ghi nhận thu</button>
+                                </form>
+                            }
+                            @if (record.Payments.Count > 0)
+                            {
+                                <details class="mt-2"><summary class="small">Lịch sử (@record.Payments.Count)</summary><ul class="small ps-3 mb-0">@foreach (var payment in record.Payments) { <li>@payment.PaymentDate.ToString("dd/MM/yyyy HH:mm") · @payment.AmountPaid.ToString("N0") VND · @(payment.PaymentMethod ?? "Không ghi phương thức")</li> }</ul></details>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 </div>

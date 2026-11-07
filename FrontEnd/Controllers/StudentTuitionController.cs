@@ -1,17 +1,26 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FrontEnd.Models;
+using FrontEnd.Services.Api;
 
 namespace FrontEnd.Controllers;
 
-/// <summary>
-/// Dev E — Xem học phí của học viên (F9).
-/// </summary>
 [Authorize(Roles = "Student")]
-public class StudentTuitionController : Controller
+public sealed class StudentTuitionController : Controller
 {
-    public IActionResult Index()
+    private readonly TutorFlowApiClient _apiClient;
+
+    public StudentTuitionController(TutorFlowApiClient apiClient) => _apiClient = apiClient;
+
+    [HttpGet]
+    public async Task<IActionResult> Index()
     {
+        var result = await _apiClient.GetMyTuitionsAsync();
+        if (!result.Success) ViewBag.ErrorMessage = result.Message;
         ViewData["Title"] = "Học phí của tôi";
-        return View();
+        return View(new StudentTuitionPageViewModel
+        {
+            Records = result.Value ?? new List<TuitionRecordViewModel>()
+        });
     }
 }

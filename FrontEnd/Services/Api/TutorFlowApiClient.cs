@@ -111,6 +111,52 @@ public sealed class TutorFlowApiClient
     public Task<ApiResponse> AssignSessionSubstituteAsync(int sessionId, int lecturerId) =>
         SendAsync(HttpMethod.Put, $"api/sessions/{sessionId}/substitute", new { LecturerId = lecturerId });
 
+    public Task<ApiResponse<EnrollmentOptionsViewModel>> GetEnrollmentOptionsAsync() =>
+        SendAsync<EnrollmentOptionsViewModel>(HttpMethod.Get, "api/enrollments/options");
+
+    public Task<ApiResponse<List<EnrollmentViewModel>>> GetEnrollmentsAsync(string? search, int? classId, string? status) =>
+        SendAsync<List<EnrollmentViewModel>>(HttpMethod.Get,
+            $"api/enrollments?search={Uri.EscapeDataString(search ?? string.Empty)}&classId={classId}&status={Uri.EscapeDataString(status ?? "All")}");
+
+    public Task<ApiResponse<EnrollmentPreviewViewModel>> PreviewEnrollmentAsync(EnrollmentRequestViewModel request) =>
+        SendAsync<EnrollmentPreviewViewModel>(HttpMethod.Post, "api/enrollments/preview", request);
+
+    public Task<ApiResponse<EnrollmentViewModel>> EnrollStudentAsync(EnrollmentRequestViewModel request) =>
+        SendAsync<EnrollmentViewModel>(HttpMethod.Post, "api/enrollments", request);
+
+    public Task<ApiResponse> DropEnrollmentAsync(int enrollmentId) =>
+        SendAsync(HttpMethod.Put, $"api/enrollments/{enrollmentId}/drop");
+
+    public Task<ApiResponse<List<TuitionPreviewItemViewModel>>> GetTuitionPreviewAsync(DateOnly from, DateOnly to, int? classId = null) =>
+        SendAsync<List<TuitionPreviewItemViewModel>>(HttpMethod.Get,
+            $"api/tuitions/preview?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&classId={classId}");
+
+    public Task<ApiResponse<List<TuitionRecordViewModel>>> GetTuitionsAsync(DateOnly from, DateOnly to, int? classId = null) =>
+        SendAsync<List<TuitionRecordViewModel>>(HttpMethod.Get,
+            $"api/tuitions?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&classId={classId}");
+
+    public Task<ApiResponse<TuitionIssueResultViewModel>> IssueTuitionsAsync(TuitionIssueRequestViewModel request) =>
+        SendAsync<TuitionIssueResultViewModel>(HttpMethod.Post, "api/tuitions/issue", request);
+
+    public Task<ApiResponse<TuitionRecordViewModel>> RecordTuitionPaymentAsync(RecordPaymentViewModel request) =>
+        SendAsync<TuitionRecordViewModel>(HttpMethod.Post, $"api/tuitions/{request.TuitionId}/payments", new
+        {
+            request.AmountPaid,
+            request.PaymentMethod,
+            request.ReceiptNumber
+        });
+
+    public Task<ApiResponse<List<StudentPortalScheduleItemViewModel>>> GetMyStudentScheduleAsync(DateOnly from, DateOnly to) =>
+        SendAsync<List<StudentPortalScheduleItemViewModel>>(HttpMethod.Get,
+            $"api/student-portal/schedule?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+
+    public Task<ApiResponse<List<StudentPortalScheduleItemViewModel>>> GetMyStudentAttendanceAsync(DateOnly from, DateOnly to) =>
+        SendAsync<List<StudentPortalScheduleItemViewModel>>(HttpMethod.Get,
+            $"api/student-portal/attendance?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+
+    public Task<ApiResponse<List<TuitionRecordViewModel>>> GetMyTuitionsAsync() =>
+        SendAsync<List<TuitionRecordViewModel>>(HttpMethod.Get, "api/student-portal/tuitions");
+
     public Task<ApiResponse<List<RoomShiftStatusViewModel>>> GetRoomStatusGridAsync(DateOnly date, int? facilityId = null)
     {
         var path = $"api/rooms/status?date={date:yyyy-MM-dd}";

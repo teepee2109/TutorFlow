@@ -47,6 +47,8 @@ builder.Services.AddScoped<BackEnd.Services.Dashboard.IAdminDashboardService, Ba
 builder.Services.AddScoped<BackEnd.Services.Classes.IClassService, BackEnd.Services.Classes.ClassService>();
 builder.Services.AddScoped<BackEnd.Services.Classes.ISessionService, BackEnd.Services.Classes.SessionService>();
 builder.Services.AddScoped<BackEnd.Services.Classes.IScheduleConflictChecker, BackEnd.Services.Classes.ScheduleConflictChecker>();
+builder.Services.AddScoped<BackEnd.Services.Rooms.IRoomService, BackEnd.Services.Rooms.RoomService>();
+builder.Services.AddScoped<BackEnd.Services.Rooms.IChangeRequestReviewService, BackEnd.Services.Rooms.ChangeRequestReviewService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<BackEnd.Services.Common.ICurrentUser, BackEnd.Services.Common.CurrentUser>();
 

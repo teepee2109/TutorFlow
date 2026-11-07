@@ -163,7 +163,11 @@ public sealed class SessionService : ISessionService
             return Result.Fail(ScheduleError.SessionDuplicate, "Lớp đã có một buổi học khác trong ngày được chọn.");
         }
 
-        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        // When called by ChangeRequestReviewService, join its transaction so the
+        // schedule update and request review status commit or roll back together.
+        await using var transaction = _db.Database.CurrentTransaction == null
+            ? await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+            : null;
         try
         {
             var conflicts = new List<ScheduleConflictDto>();
@@ -175,7 +179,7 @@ public sealed class SessionService : ISessionService
                     ignoreSessionIds: ignoredIds);
                 if (!result.Success || result.Value == null)
                 {
-                    await transaction.RollbackAsync();
+                    if (transaction != null) await transaction.RollbackAsync();
                     return Result.Fail(result.Error ?? ScheduleError.ValidationError, result.Message);
                 }
                 conflicts.AddRange(result.Value);
@@ -183,7 +187,7 @@ public sealed class SessionService : ISessionService
 
             if (conflicts.Count > 0)
             {
-                await transaction.RollbackAsync();
+                if (transaction != null) await transaction.RollbackAsync();
                 return Result.Fail(conflicts[0].Error, FormatConflicts(conflicts));
             }
 
@@ -207,15 +211,18 @@ public sealed class SessionService : ISessionService
             }
 
             await _db.SaveChangesAsync();
-            await transaction.CommitAsync();
+            if (transaction != null) await transaction.CommitAsync();
             return Result.Ok(request.ApplyToWholeClass
                 ? $"Đã dời {targetSessions.Count} buổi học của lớp."
                 : "Đã dời buổi học.");
         }
         catch (Exception exception)
         {
-            await transaction.RollbackAsync();
-            _db.ChangeTracker.Clear();
+            if (transaction != null)
+            {
+                await transaction.RollbackAsync();
+                _db.ChangeTracker.Clear();
+            }
             return FailureFromException(exception, "Không thể dời buổi học lúc này.");
         }
     }

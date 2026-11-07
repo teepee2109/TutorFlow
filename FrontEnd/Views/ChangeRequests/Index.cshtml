@@ -1,13 +1,76 @@
+@model FrontEnd.Models.RoomChangeReviewListViewModel
 @{
-    ViewData["Title"] = "Yêu cầu đổi phòng / ca";
+    ViewData["Title"] = "Duyệt yêu cầu đổi phòng / ca";
 }
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Yêu cầu đổi phòng / ca</h4>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">🔄 Duyệt yêu cầu đổi phòng / ca</h2>
+        <p class="text-muted mb-0">Danh sách yêu cầu đang chờ xử lý tại cơ sở bạn phụ trách.</p>
     </div>
-    <div class="alert alert-info" role="alert">
-        <i class="bi bi-hammer me-2"></i>
-        <strong>Dev C đang triển khai.</strong> Chức năng yêu cầu và duyệt đổi phòng/ca (F7) sẽ có ở đây.
-    </div>
+    <span class="badge bg-warning text-dark fs-6">Chờ duyệt: @Model.Requests.Count</span>
 </div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+@if (ViewBag.ErrorMessage is string loadError)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+
+@if (Model.Requests.Count == 0)
+{
+    <div class="alert alert-info">Hiện không có yêu cầu đổi phòng/ca đang chờ duyệt.</div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-xl-2 g-3">
+        @foreach (var request in Model.Requests)
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-white">
+                        <strong>@request.ClassName</strong>
+                        <span class="badge bg-secondary">@request.Scope</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 small mb-3">
+                            <div class="col-sm-6"><strong>Giảng viên:</strong> @request.LecturerName</div>
+                            @if (request.SessionDate.HasValue)
+                            {
+                                <div class="col-sm-6"><strong>Ngày học:</strong> @request.SessionDate.Value.ToString("dd/MM/yyyy")</div>
+                            }
+                            <div class="col-sm-6"><strong>Phòng:</strong> @request.CurrentRoom → @(request.RequestedRoom ?? "Giữ nguyên")</div>
+                            <div class="col-sm-6"><strong>Ca:</strong> @request.CurrentShift → @(request.RequestedShift ?? "Giữ nguyên")</div>
+                            <div class="col-12"><strong>Gửi lúc:</strong> @request.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                        </div>
+                        <div class="border-start border-3 ps-3 mb-3">
+                            <strong>Lý do</strong>
+                            <div class="text-muted">@request.Reason</div>
+                        </div>
+                        <div class="d-flex flex-column gap-3">
+                            <form method="post" asp-action="Approve" class="d-flex gap-2 align-items-start">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="requestId" value="@request.RequestId" />
+                                <input name="reviewNote" maxlength="255" class="form-control form-control-sm" placeholder="Ghi chú duyệt (không bắt buộc)" />
+                                <button type="submit" class="btn btn-sm btn-success text-nowrap">Duyệt</button>
+                            </form>
+                            <form method="post" asp-action="Reject" class="d-flex gap-2 align-items-start">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="RequestId" value="@request.RequestId" />
+                                <input name="ReviewNote" maxlength="255" required class="form-control form-control-sm" placeholder="Lý do từ chối (bắt buộc)" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">Từ chối</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

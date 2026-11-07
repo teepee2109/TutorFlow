@@ -100,7 +100,9 @@ public sealed class AdminDashboardService : IAdminDashboardService
                     .Distinct()
                     .CountAsync(),
                 PendingChangeRequests = await _db.RoomChangeRequests
-                    .CountAsync(request => request.Status == "Pending" && request.Class.FacilityId == facilityId),
+                    .CountAsync(request => request.Status == "Pending"
+                        && ((request.RequestedRoomId.HasValue && request.RequestedRoom!.FacilityId == facilityId)
+                            || (!request.RequestedRoomId.HasValue && request.CurrentRoom.FacilityId == facilityId))),
                 TotalUnpaidTuition = await _db.Tuitions
                     .Where(tuition => tuition.PaymentStatus == "Unpaid" && tuition.Class.FacilityId == facilityId)
                     .Select(tuition => tuition.TotalAmount ?? 0m)

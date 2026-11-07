@@ -37,6 +37,9 @@
                                     <a class="nav-link" asp-controller="Users" asp-action="Facilities">🏢 Cơ sở &amp; FM</a>
                                 </li>
                                 <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🚪 Lưới phòng</a>
+                                </li>
+                                <li class="nav-item">
                                     <a class="nav-link" asp-controller="Enrollments" asp-action="Index">📝 Ghi danh</a>
                                 </li>
                                 <li class="nav-item">
@@ -55,6 +58,9 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" asp-controller="Classes" asp-action="Index">📚 Lớp &amp; Buổi học</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🚪 Lưới phòng</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" asp-controller="Enrollments" asp-action="Index">📝 Ghi danh</a>
@@ -84,6 +90,9 @@
                             @* ===== LECTURER ===== *@
                             @if (CurrentUser.IsInRole("Lecturer"))
                             {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🚪 Lưới phòng</a>
+                                </li>
                                 <li class="nav-item">
                                     <a class="nav-link" asp-controller="Schedule" asp-action="Index">📅 Lịch dạy &amp; Điểm danh</a>
                                 </li>

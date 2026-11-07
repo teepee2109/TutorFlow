@@ -111,6 +111,37 @@ public sealed class TutorFlowApiClient
     public Task<ApiResponse> AssignSessionSubstituteAsync(int sessionId, int lecturerId) =>
         SendAsync(HttpMethod.Put, $"api/sessions/{sessionId}/substitute", new { LecturerId = lecturerId });
 
+    public Task<ApiResponse<List<RoomShiftStatusViewModel>>> GetRoomStatusGridAsync(DateOnly date, int? facilityId = null)
+    {
+        var path = $"api/rooms/status?date={date:yyyy-MM-dd}";
+        if (facilityId.HasValue) path += $"&facilityId={facilityId.Value}";
+        return SendAsync<List<RoomShiftStatusViewModel>>(HttpMethod.Get, path);
+    }
+
+    public Task<ApiResponse<List<RoomOptionViewModel>>> FindEmptyRoomsAsync(DateOnly date, int shiftId) =>
+        SendAsync<List<RoomOptionViewModel>>(HttpMethod.Get, $"api/rooms/empty?date={date:yyyy-MM-dd}&shiftId={shiftId}");
+
+    public Task<ApiResponse<List<AffectedSessionViewModel>>> GetAffectedRoomSessionsAsync(int roomId) =>
+        SendAsync<List<AffectedSessionViewModel>>(HttpMethod.Get, $"api/rooms/{roomId}/affected-sessions");
+
+    public Task<ApiResponse> SetRoomConditionAsync(int roomId, string condition) =>
+        SendAsync(HttpMethod.Put, $"api/rooms/{roomId}/condition", new { Condition = condition });
+
+    public Task<ApiResponse> AssignRoomToSessionAsync(int sessionId, int roomId, bool applyToWholeClass) =>
+        SendAsync(HttpMethod.Put, $"api/rooms/sessions/{sessionId}/room", new { RoomId = roomId, ApplyToWholeClass = applyToWholeClass });
+
+    public Task<ApiResponse> CancelAffectedRoomSessionAsync(int sessionId) =>
+        SendAsync(HttpMethod.Post, $"api/rooms/sessions/{sessionId}/cancel");
+
+    public Task<ApiResponse<List<RoomChangeReviewViewModel>>> GetPendingRoomChangeRequestsAsync() =>
+        SendAsync<List<RoomChangeReviewViewModel>>(HttpMethod.Get, "api/room-change-requests");
+
+    public Task<ApiResponse> ApproveRoomChangeRequestAsync(int requestId, string? reviewNote) =>
+        SendAsync(HttpMethod.Post, $"api/room-change-requests/{requestId}/approve", new { ReviewNote = reviewNote });
+
+    public Task<ApiResponse> RejectRoomChangeRequestAsync(int requestId, string reviewNote) =>
+        SendAsync(HttpMethod.Post, $"api/room-change-requests/{requestId}/reject", new { ReviewNote = reviewNote });
+
     private async Task<ApiResponse<T>> SendAsync<T>(HttpMethod method, string path, object? body = null)
     {
         using var request = new HttpRequestMessage(method, path);

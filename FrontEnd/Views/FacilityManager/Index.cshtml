@@ -1,82 +1,57 @@
 @model FrontEnd.Models.AdminDashboardViewModel
 @inject ICurrentUser CurrentUser
 @{
-    ViewData["Title"] = "Facility Manager Dashboard";
+    ViewData["Title"] = "Dashboard cơ sở";
     var facilityId = Model.FacilityId ?? CurrentUser.FacilityId;
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+<div class="tf-page-heading">
     <div>
-        <h2 class="fw-bold mb-1">📊 Dashboard Facility Manager</h2>
-        <p class="text-muted mb-0">
-            Xin chào, <strong>@CurrentUser.FullName</strong> —
-            @(Model.FacilityName ?? (facilityId.HasValue ? $"Cơ sở {facilityId}" : "Chưa được gán cơ sở"))
-        </p>
+        <h1>Tổng quan cơ sở</h1>
+        <p>Xin chào, <strong>@CurrentUser.FullName</strong> · @(Model.FacilityName ?? (facilityId.HasValue ? $"Cơ sở {facilityId}" : "Chưa được gán cơ sở"))</p>
     </div>
     <form method="get" asp-controller="FacilityManager" asp-action="Index" class="d-flex align-items-end gap-2">
         <div>
-            <label class="form-label small text-muted mb-1" for="dashboardDate">Ngày xem sơ đồ phòng</label>
+            <label class="form-label mb-1" for="dashboardDate">Ngày xem</label>
             <input id="dashboardDate" type="date" name="date" value="@Model.TargetDate.ToString("yyyy-MM-dd")" class="form-control" />
         </div>
-        <button type="submit" class="btn btn-outline-primary">Xem ngày</button>
+        <button type="submit" class="btn btn-primary">Cập nhật</button>
     </form>
 </div>
 
 @if (ViewBag.ErrorMessage != null)
 {
-    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+    <div class="alert alert-danger" role="alert">@ViewBag.ErrorMessage</div>
 }
 
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 bg-primary text-white h-100">
-            <div class="card-body">
-                <div class="text-uppercase small opacity-75">Cơ sở vật chất</div>
-                <div class="display-6 fw-bold">@(Model.TotalRooms ?? 0) <span class="fs-6 fw-normal">phòng</span></div>
-                <div class="d-flex justify-content-between border-top border-white-50 pt-2 small">
-                    <span>Đang mở: @(Model.OpenRooms ?? 0)</span><span>Đóng: @(Model.ClosedRooms ?? 0)</span>
-                </div>
-            </div>
-        </div>
+        <section class="tf-stat-card primary" data-icon="⌂" aria-label="Cơ sở vật chất">
+            <div class="tf-stat-label">Cơ sở vật chất</div>
+            <div class="tf-stat-value">@(Model.TotalRooms ?? 0) <small class="fs-6 fw-normal">phòng</small></div>
+            <div class="tf-stat-note">Đang mở: <strong>@(Model.OpenRooms ?? 0)</strong><span class="mx-2">·</span>Đóng: <strong>@(Model.ClosedRooms ?? 0)</strong></div>
+        </section>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 bg-success text-white h-100">
-            <div class="card-body">
-                <div class="text-uppercase small opacity-75">Quy mô đào tạo</div>
-                <div class="display-6 fw-bold">@(Model.ActiveClasses ?? 0) <span class="fs-6 fw-normal">lớp đang mở</span></div>
-                <div class="d-flex justify-content-between border-top border-white-50 pt-2 small">
-                    <span>Giảng viên: @(Model.ActiveLecturers ?? 0)</span><span>Học viên: @(Model.ActiveStudents ?? 0)</span>
-                </div>
-            </div>
-        </div>
+        <section class="tf-stat-card success" data-icon="▣" aria-label="Quy mô đào tạo">
+            <div class="tf-stat-label">Quy mô đào tạo</div>
+            <div class="tf-stat-value">@(Model.ActiveClasses ?? 0) <small class="fs-6 fw-normal">lớp đang mở</small></div>
+            <div class="tf-stat-note">Giảng viên: <strong>@(Model.ActiveLecturers ?? 0)</strong><span class="mx-2">·</span>Học viên: <strong>@(Model.ActiveStudents ?? 0)</strong></div>
+        </section>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 bg-warning text-dark h-100">
-            <div class="card-body">
-                <div class="text-uppercase small opacity-75">Vận hành và tài chính</div>
-                <div class="display-6 fw-bold">@(Model.PendingChangeRequests ?? 0) <span class="fs-6 fw-normal">yêu cầu chờ duyệt</span></div>
-                <div class="border-top border-dark-50 pt-2 small">Học phí chưa thu: <strong>@Model.TotalUnpaidTuition.ToString("N0") VNĐ</strong></div>
-            </div>
-        </div>
+        <section class="tf-stat-card warning" data-icon="₫" aria-label="Vận hành và tài chính">
+            <div class="tf-stat-label">Vận hành &amp; tài chính</div>
+            <div class="tf-stat-value">@(Model.PendingChangeRequests ?? 0) <small class="fs-6 fw-normal">yêu cầu chờ duyệt</small></div>
+            <div class="tf-stat-note">Học phí chưa thu: <strong>@Model.TotalUnpaidTuition.ToString("N0") VNĐ</strong></div>
+        </section>
     </div>
 </div>
 
 <partial name="_RoomShiftStatusTable" model="Model" />
 
-<div class="row g-3 mt-2">
-    <div class="col-md-4">
-        <a asp-controller="Rooms" asp-action="Index" class="card card-body text-decoration-none h-100">
-            <strong>🏢 Quản lý phòng</strong><span class="small text-muted">Xem phòng trống, đang dùng và đóng bảo trì</span>
-        </a>
-    </div>
-    <div class="col-md-4">
-        <a asp-controller="ChangeRequests" asp-action="Index" class="card card-body text-decoration-none h-100">
-            <strong>📋 Duyệt đổi phòng/ca</strong><span class="small text-muted">Xét yêu cầu tại cơ sở</span>
-        </a>
-    </div>
-    <div class="col-md-4">
-        <a asp-controller="Attendance" asp-action="Index" class="card card-body text-decoration-none h-100">
-            <strong>👤 Điểm danh</strong><span class="small text-muted">Theo dõi điểm danh tại cơ sở</span>
-        </a>
-    </div>
+<div class="row g-3 mt-1">
+    <div class="col-md-4"><a asp-controller="Rooms" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">⌂</span><strong>Quản lý phòng</strong><small>Xem phòng đang dùng, còn trống và bảo trì</small></a></div>
+    <div class="col-md-4"><a asp-controller="ChangeRequests" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">⇄</span><strong>Duyệt đổi phòng / ca</strong><small>Xem và xử lý yêu cầu tại cơ sở</small></a></div>
+    <div class="col-md-4"><a asp-controller="Attendance" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">✓</span><strong>Điểm danh</strong><small>Theo dõi tình hình điểm danh</small></a></div>
 </div>

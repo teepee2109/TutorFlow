@@ -47,7 +47,7 @@
     <input type="hidden" name="SessionId" value="@Model.SessionId" />
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 tf-paginated-table">
                 <thead class="table-light"><tr><th>#</th><th>Học viên</th><th>Email</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
                 <tbody>
                     @if (Model.Students.Count == 0)

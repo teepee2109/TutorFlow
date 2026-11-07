@@ -32,7 +32,7 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white fw-semibold">Bảng tính theo điểm danh</div>
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 tf-paginated-table">
             <thead class="table-light"><tr><th>Học viên</th><th>Lớp</th><th>Có mặt</th><th>Vắng phép</th><th>Vắng không phép</th><th>Đơn giá</th><th>Tạm tính</th><th>Trạng thái</th></tr></thead>
             <tbody>
                 @if (Model.Preview.Count == 0) { <tr><td colspan="8" class="text-center text-muted py-4">Không có dữ liệu điểm danh hoàn tất trong kỳ.</td></tr> }
@@ -48,7 +48,7 @@
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white fw-semibold">Các khoản học phí đã phát hành</div>
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 tf-paginated-table">
             <thead class="table-light"><tr><th>Học viên / lớp</th><th>Kỳ</th><th>Số buổi</th><th>Tổng phí</th><th>Đã thu</th><th>Còn lại</th><th>Trạng thái</th><th>Thanh toán</th></tr></thead>
             <tbody>
                 @if (Model.Records.Count == 0) { <tr><td colspan="8" class="text-center text-muted py-4">Chưa có khoản học phí nào trong kỳ.</td></tr> }

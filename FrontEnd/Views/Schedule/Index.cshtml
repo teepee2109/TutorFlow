@@ -39,7 +39,7 @@
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white fw-semibold">@Model.From.ToString("dd/MM/yyyy") – @Model.To.ToString("dd/MM/yyyy")</div>
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 tf-paginated-table">
             <thead class="table-light"><tr><th>Ngày / ca</th><th>Lớp</th><th>Phòng</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>
                 @if (Model.Sessions.Count == 0)

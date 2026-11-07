@@ -60,7 +60,7 @@
             {
                 <p class="text-muted">Dời từng buổi sang phòng trống cùng ca hoặc hủy buổi; sau đó đóng phòng.</p>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle">
+                    <table class="table table-sm align-middle tf-paginated-table">
                         <thead><tr><th>Ngày / ca</th><th>Lớp</th><th>Giảng viên</th><th>Xử lý</th></tr></thead>
                         <tbody>
                             @foreach (var session in Model.AffectedSessions)
@@ -113,7 +113,7 @@
 
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 tf-paginated-table">
             <thead class="table-light">
                 <tr><th>Cơ sở</th><th>Phòng</th><th>Ca</th><th>Trạng thái</th><th>Lớp / giảng viên</th>@if (Model.CanManageRooms) { <th>Thao tác</th> }</tr>
             </thead>

@@ -1,118 +1,68 @@
 @model AdminDashboardViewModel
 @{
-    ViewData["Title"] = "Dashboard Thống kê Hệ thống";
+    ViewData["Title"] = "Dashboard quản trị";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="tf-page-heading">
     <div>
-        <h2 class="fw-bold">📊 Dashboard Quản trị (Admin)</h2>
-        <p class="text-muted mb-0">Tổng quan chỉ số hoạt động toàn hệ thống TutorFlow</p>
+        <h1>Tổng quan hệ thống</h1>
+        <p>Theo dõi hoạt động TutorFlow và truy cập nhanh các chức năng quản trị.</p>
     </div>
-    <div>
-        <a asp-controller="Users" asp-action="Index" class="btn btn-primary">
-            👥 Quản lý tài khoản
-        </a>
-        <a asp-controller="Users" asp-action="Facilities" class="btn btn-outline-secondary ms-2">
-            🏢 Phân công cơ sở
-        </a>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-controller="Users" asp-action="Index" class="btn btn-primary">Quản lý tài khoản</a>
+        <a asp-controller="Users" asp-action="Facilities" class="btn btn-outline-primary">Phân công cơ sở</a>
     </div>
 </div>
 
-<form method="get" asp-controller="Admin" asp-action="Index" class="d-flex justify-content-end align-items-end gap-2 mb-3">
-    <div>
-        <label class="form-label small text-muted mb-1" for="dashboardDate">Ngày xem sơ đồ phòng</label>
-        <input id="dashboardDate" type="date" name="date" value="@Model.TargetDate.ToString("yyyy-MM-dd")" class="form-control" />
+<form method="get" asp-controller="Admin" asp-action="Index" class="card card-body mb-4">
+    <div class="d-flex flex-wrap align-items-end gap-3">
+        <div>
+            <label class="form-label mb-1" for="dashboardDate">Ngày xem sơ đồ phòng</label>
+            <input id="dashboardDate" type="date" name="date" value="@Model.TargetDate.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary">Xem ngày</button>
     </div>
-    <button type="submit" class="btn btn-outline-primary">Xem ngày</button>
 </form>
 
 @if (ViewBag.ErrorMessage != null)
 {
-    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+    <div class="alert alert-danger" role="alert">@ViewBag.ErrorMessage</div>
 }
 
-<div class="row g-4 mb-4">
-    <!-- Cụm Phòng Học -->
+<div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 bg-primary text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="card-title text-uppercase mb-0 opacity-75">Cơ sở vật chất</h6>
-                    <span class="fs-4">🏢</span>
-                </div>
-                <h2 class="display-6 fw-bold mb-3">@(Model?.TotalRooms ?? 0) <span class="fs-6 fw-normal">phòng</span></h2>
-                <div class="d-flex justify-content-between pt-2 border-top border-white-50 small">
-                    <span>🟢 Đang mở: <strong>@(Model?.OpenRooms ?? 0)</strong></span>
-                    <span>🔴 Đang đóng bảo trì: <strong>@(Model?.ClosedRooms ?? 0)</strong></span>
-                </div>
-            </div>
-        </div>
+        <section class="tf-stat-card primary" data-icon="⌂" aria-label="Cơ sở vật chất">
+            <div class="tf-stat-label">Cơ sở vật chất</div>
+            <div class="tf-stat-value">@(Model?.TotalRooms ?? 0) <small class="fs-6 fw-normal">phòng</small></div>
+            <div class="tf-stat-note">Đang mở: <strong>@(Model?.OpenRooms ?? 0)</strong><span class="mx-2">·</span>Đóng bảo trì: <strong>@(Model?.ClosedRooms ?? 0)</strong></div>
+        </section>
     </div>
-
-    <!-- Cụm Lớp & Người Dùng -->
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 bg-success text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="card-title text-uppercase mb-0 opacity-75">Quy mô đào tạo</h6>
-                    <span class="fs-4">🎓</span>
-                </div>
-                <h2 class="display-6 fw-bold mb-3">@(Model?.ActiveClasses ?? 0) <span class="fs-6 fw-normal">lớp đang mở</span></h2>
-                <div class="d-flex justify-content-between pt-2 border-top border-white-50 small">
-                    <span>👨‍🏫 Giảng viên: <strong>@(Model?.ActiveLecturers ?? 0)</strong></span>
-                    <span>👨‍🎓 Học viên: <strong>@(Model?.ActiveStudents ?? 0)</strong></span>
-                </div>
-            </div>
-        </div>
+        <section class="tf-stat-card success" data-icon="▣" aria-label="Quy mô đào tạo">
+            <div class="tf-stat-label">Quy mô đào tạo</div>
+            <div class="tf-stat-value">@(Model?.ActiveClasses ?? 0) <small class="fs-6 fw-normal">lớp đang mở</small></div>
+            <div class="tf-stat-note">Giảng viên: <strong>@(Model?.ActiveLecturers ?? 0)</strong><span class="mx-2">·</span>Học viên: <strong>@(Model?.ActiveStudents ?? 0)</strong></div>
+        </section>
     </div>
-
-    <!-- Cụm Vận Hành & Tài Chính -->
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 bg-warning text-dark h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="card-title text-uppercase mb-0 opacity-75">Vận hành & Tài chính</h6>
-                    <span class="fs-4">⚡</span>
-                </div>
-                <h2 class="display-6 fw-bold mb-3">@(Model?.PendingChangeRequests ?? 0) <span class="fs-6 fw-normal">yêu cầu chờ duyệt</span></h2>
-                <div class="pt-2 border-top border-dark-50 small">
-                    <span>💰 Tổng học phí chưa thu: <strong>@(Model?.TotalUnpaidTuition.ToString("N0") ?? "0") VNĐ</strong></span>
-                </div>
-            </div>
-        </div>
+        <section class="tf-stat-card warning" data-icon="₫" aria-label="Vận hành và tài chính">
+            <div class="tf-stat-label">Vận hành &amp; tài chính</div>
+            <div class="tf-stat-value">@(Model?.PendingChangeRequests ?? 0) <small class="fs-6 fw-normal">yêu cầu chờ duyệt</small></div>
+            <div class="tf-stat-note">Học phí chưa thu: <strong>@(Model?.TotalUnpaidTuition.ToString("N0") ?? "0") VNĐ</strong></div>
+        </section>
     </div>
 </div>
 
 <partial name="_RoomShiftStatusTable" model="Model" />
 
-<div class="card border-0 shadow-sm mt-4">
-    <div class="card-body p-4">
-        <h5 class="fw-bold mb-3">⚡ Lối tắt quản trị</h5>
+<section class="card mt-4">
+    <div class="card-header">Lối tắt quản trị</div>
+    <div class="card-body">
         <div class="row g-3">
-            <div class="col-md-3">
-                <a asp-controller="Users" asp-action="Create" class="btn btn-outline-primary w-100 py-3 text-start">
-                    <div class="fw-bold">➕ Thêm tài khoản mới</div>
-                    <small class="text-muted">Tạo GM, FM, GV hoặc HV</small>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a asp-controller="Users" asp-action="Facilities" class="btn btn-outline-info w-100 py-3 text-start">
-                    <div class="fw-bold">🏢 Gán người phụ trách cơ sở</div>
-                    <small class="text-muted">Phân bổ FM cho 3 cơ sở</small>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a asp-controller="Users" asp-action="Index" asp-route-roleFilter="Lecturer" class="btn btn-outline-secondary w-100 py-3 text-start">
-                    <div class="fw-bold">👨‍🏫 Danh sách giảng viên</div>
-                    <small class="text-muted">Xem và quản lý giảng viên</small>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a asp-controller="Users" asp-action="Index" asp-route-roleFilter="Student" class="btn btn-outline-secondary w-100 py-3 text-start">
-                    <div class="fw-bold">👨‍🎓 Danh sách học viên</div>
-                    <small class="text-muted">Xem và quản lý học viên</small>
-                </a>
-            </div>
+            <div class="col-sm-6 col-xl-3"><a asp-controller="Users" asp-action="Create" class="tf-quick-card"><span class="tf-quick-icon">＋</span><strong>Thêm tài khoản</strong><small>Tạo tài khoản và phân vai trò</small></a></div>
+            <div class="col-sm-6 col-xl-3"><a asp-controller="Users" asp-action="Facilities" class="tf-quick-card"><span class="tf-quick-icon">⌂</span><strong>Phân công cơ sở</strong><small>Gán người phụ trách cơ sở</small></a></div>
+            <div class="col-sm-6 col-xl-3"><a asp-controller="Users" asp-action="Index" asp-route-roleFilter="Lecturer" class="tf-quick-card"><span class="tf-quick-icon">♙</span><strong>Giảng viên</strong><small>Xem và quản lý tài khoản</small></a></div>
+            <div class="col-sm-6 col-xl-3"><a asp-controller="Users" asp-action="Index" asp-route-roleFilter="Student" class="tf-quick-card"><span class="tf-quick-icon">♧</span><strong>Học viên</strong><small>Xem và quản lý tài khoản</small></a></div>
         </div>
     </div>
-</div>
+</section>

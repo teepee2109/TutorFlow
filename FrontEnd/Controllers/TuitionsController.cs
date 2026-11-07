@@ -5,7 +5,7 @@ using FrontEnd.Services.Api;
 
 namespace FrontEnd.Controllers;
 
-[Authorize(Roles = "GrandManager,Lecturer")]
+[Authorize(Roles = "Admin,GrandManager,Lecturer")]
 public sealed class TuitionsController : Controller
 {
     private readonly TutorFlowApiClient _apiClient;

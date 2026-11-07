@@ -1,5 +1,13 @@
 @inject ICurrentUser CurrentUser
-
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    string Active(string controller, string? action = null) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase)
+        && (action == null || string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase))
+            ? "active"
+            : string.Empty;
+}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -11,170 +19,119 @@
     <link rel="stylesheet" href="~/FrontEnd.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom mb-3 shadow-sm">
-            <div class="container-fluid px-4">
-                <a class="navbar-brand fw-bold text-primary" asp-controller="Home" asp-action="Index">
-                    🎓 TutorFlow
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        @if (CurrentUser.IsAuthenticated)
-                        {
-                            @* ===== ADMIN ===== *@
-                            @if (CurrentUser.IsInRole("Admin"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Admin" asp-action="Index">📊 Dashboard</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Users" asp-action="Index">👥 Quản lý tài khoản</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Users" asp-action="Facilities">🏢 Cơ sở &amp; FM</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🚪 Lưới phòng</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Enrollments" asp-action="Index">📝 Ghi danh</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Tuitions" asp-action="Index">💰 Học phí</a>
-                                </li>
-                            }
-
-                            @* ===== GRAND MANAGER ===== *@
-                            @if (CurrentUser.IsInRole("GrandManager"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="GrandManager" asp-action="Index">📊 Dashboard</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Users" asp-action="Index">👥 Tài khoản</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Users" asp-action="Index" asp-route-roleFilter="Student">🎓 Học viên</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Classes" asp-action="Index">📚 Lớp &amp; Buổi học</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🚪 Lưới phòng</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Enrollments" asp-action="Index">📝 Ghi danh</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Tuitions" asp-action="Index">💰 Học phí</a>
-                                </li>
-                            }
-
-                            @* ===== FACILITY MANAGER ===== *@
-                            @if (CurrentUser.IsInRole("FacilityManager"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="FacilityManager" asp-action="Index">📊 Dashboard</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🏢 Lưới phòng &amp; Ca</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="ChangeRequests" asp-action="Index">📋 Duyệt đổi phòng</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Attendance" asp-action="Index">✅ Điểm danh</a>
-                                </li>
-                            }
-
-                            @* ===== LECTURER ===== *@
-                            @if (CurrentUser.IsInRole("Lecturer"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Rooms" asp-action="Index">🚪 Lưới phòng</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Schedule" asp-action="Index">📅 Lịch dạy &amp; Điểm danh</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Tuitions" asp-action="Index">💰 Học phí lớp tôi dạy</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="ChangeRequests" asp-action="Mine">📋 Yêu cầu của tôi</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="ChangeRequests" asp-action="Create">🔄 Xin đổi phòng/ca</a>
-                                </li>
-                            }
-
-                            @* ===== STUDENT ===== *@
-                            @if (CurrentUser.IsInRole("Student"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="StudentSchedule" asp-action="Index">📖 Lịch học</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="StudentTuition" asp-action="Index">💳 Học phí của tôi</a>
-                                </li>
-                            }
-                        }
-                    </ul>
-
-                    <ul class="navbar-nav">
-                        @if (CurrentUser.IsAuthenticated)
-                        {
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                                    👤 <strong>@CurrentUser.FullName</strong>
-                                    <span class="badge bg-secondary ms-1">@CurrentUser.Role</span>
-                                    @if (CurrentUser.FacilityId.HasValue)
-                                    {
-                                        <span class="badge bg-info text-dark ms-1">Cơ sở @CurrentUser.FacilityId</span>
-                                    }
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end shadow">
-                                    <li><span class="dropdown-item-text small text-muted">@CurrentUser.Email</span></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <form method="post" asp-controller="Account" asp-action="Logout" class="d-inline">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="dropdown-item text-danger">🚪 Đăng xuất</button>
-                                        </form>
-                                    </li>
-                                </ul>
-                            </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="btn btn-outline-light btn-sm" asp-controller="Account" asp-action="Login">Đăng nhập</a>
-                            </li>
-                        }
-                    </ul>
+    @if (CurrentUser.IsAuthenticated)
+    {
+        <div class="tf-app-shell">
+            <aside class="offcanvas offcanvas-start tf-sidebar" tabindex="-1" id="appSidebar" aria-labelledby="sidebarLabel">
+                <div class="tf-sidebar-header">
+                    <a class="tf-brand" asp-controller="Home" asp-action="Index" id="sidebarLabel">
+                        <span class="tf-brand-mark">T</span>
+                        <span>Tutor<span class="tf-brand-light">Flow</span><small>QUẢN LÝ TRUNG TÂM</small></span>
+                    </a>
+                    <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Đóng menu"></button>
                 </div>
+
+                <div class="tf-sidebar-user">
+                    <span class="tf-avatar">@((CurrentUser.FullName?.FirstOrDefault() ?? 'U').ToString().ToUpperInvariant())</span>
+                    <span class="tf-user-label"><strong>@CurrentUser.FullName</strong><small>@CurrentUser.Role</small></span>
+                </div>
+
+                <nav class="tf-nav" aria-label="Điều hướng chính">
+                    <span class="tf-nav-heading">KHÔNG GIAN LÀM VIỆC</span>
+                    @if (CurrentUser.IsInRole("Admin"))
+                    {
+                        <a class="tf-nav-link @Active("Admin")" asp-controller="Admin" asp-action="Index"><span class="tf-nav-icon">▦</span>Dashboard</a>
+                        <a class="tf-nav-link @Active("Users")" asp-controller="Users" asp-action="Index"><span class="tf-nav-icon">♙</span>Quản lý tài khoản</a>
+                        <a class="tf-nav-link @Active("Users", "Facilities")" asp-controller="Users" asp-action="Facilities"><span class="tf-nav-icon">⌂</span>Cơ sở &amp; quản lý</a>
+                        <a class="tf-nav-link @Active("Rooms")" asp-controller="Rooms" asp-action="Index"><span class="tf-nav-icon">▤</span>Lưới phòng</a>
+                        <a class="tf-nav-link @Active("Tuitions")" asp-controller="Tuitions" asp-action="Index"><span class="tf-nav-icon">₫</span>Học phí</a>
+                    }
+                    @if (CurrentUser.IsInRole("GrandManager"))
+                    {
+                        <a class="tf-nav-link @Active("GrandManager")" asp-controller="GrandManager" asp-action="Index"><span class="tf-nav-icon">▦</span>Dashboard</a>
+                        <a class="tf-nav-link @Active("Classes")" asp-controller="Classes" asp-action="Index"><span class="tf-nav-icon">▣</span>Lớp &amp; buổi học</a>
+                        <a class="tf-nav-link @Active("Enrollments")" asp-controller="Enrollments" asp-action="Index"><span class="tf-nav-icon">＋</span>Ghi danh</a>
+                        <a class="tf-nav-link @Active("Users")" asp-controller="Users" asp-action="Index"><span class="tf-nav-icon">♙</span>Tài khoản</a>
+                        <a class="tf-nav-link @Active("Rooms")" asp-controller="Rooms" asp-action="Index"><span class="tf-nav-icon">▤</span>Lưới phòng</a>
+                        <a class="tf-nav-link @Active("Tuitions")" asp-controller="Tuitions" asp-action="Index"><span class="tf-nav-icon">₫</span>Học phí</a>
+                    }
+                    @if (CurrentUser.IsInRole("FacilityManager"))
+                    {
+                        <a class="tf-nav-link @Active("FacilityManager")" asp-controller="FacilityManager" asp-action="Index"><span class="tf-nav-icon">▦</span>Dashboard</a>
+                        <a class="tf-nav-link @Active("Rooms")" asp-controller="Rooms" asp-action="Index"><span class="tf-nav-icon">▤</span>Lưới phòng &amp; ca</a>
+                        <a class="tf-nav-link @Active("ChangeRequests")" asp-controller="ChangeRequests" asp-action="Index"><span class="tf-nav-icon">⇄</span>Duyệt đổi phòng</a>
+                        <a class="tf-nav-link @Active("Attendance")" asp-controller="Attendance" asp-action="Index"><span class="tf-nav-icon">✓</span>Điểm danh</a>
+                    }
+                    @if (CurrentUser.IsInRole("Lecturer"))
+                    {
+                        <a class="tf-nav-link @Active("Schedule")" asp-controller="Schedule" asp-action="Index"><span class="tf-nav-icon">▦</span>Lịch dạy &amp; điểm danh</a>
+                        <a class="tf-nav-link @Active("Tuitions")" asp-controller="Tuitions" asp-action="Index"><span class="tf-nav-icon">₫</span>Học phí lớp tôi dạy</a>
+                        <a class="tf-nav-link @Active("ChangeRequests", "Mine")" asp-controller="ChangeRequests" asp-action="Mine"><span class="tf-nav-icon">⇄</span>Yêu cầu của tôi</a>
+                        <a class="tf-nav-link @Active("ChangeRequests", "Create")" asp-controller="ChangeRequests" asp-action="Create"><span class="tf-nav-icon">＋</span>Xin đổi phòng / ca</a>
+                    }
+                    @if (CurrentUser.IsInRole("Student"))
+                    {
+                        <a class="tf-nav-link @Active("StudentSchedule")" asp-controller="StudentSchedule" asp-action="Index"><span class="tf-nav-icon">▦</span>Lịch học</a>
+                        <a class="tf-nav-link @Active("StudentTuition")" asp-controller="StudentTuition" asp-action="Index"><span class="tf-nav-icon">₫</span>Học phí của tôi</a>
+                    }
+                </nav>
+
+                <div class="tf-sidebar-footer">
+                    @if (CurrentUser.FacilityId.HasValue)
+                    {
+                        <div class="tf-facility-chip"><span class="tf-status-dot"></span>Cơ sở @CurrentUser.FacilityId</div>
+                    }
+                    <form method="post" asp-controller="Account" asp-action="Logout">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="tf-logout"><span class="tf-nav-icon">↪</span>Đăng xuất</button>
+                    </form>
+                </div>
+            </aside>
+
+            <div class="tf-main-shell">
+                <header class="tf-topbar">
+                    <button class="tf-menu-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Mở menu">☰</button>
+                    <div class="tf-topbar-title"><span>TRANG HIỆN TẠI</span><strong>@ViewData["Title"]</strong></div>
+                    <div class="tf-topbar-meta">
+                        @if (CurrentUser.FacilityId.HasValue)
+                        {
+                            <span class="tf-topbar-facility">Cơ sở @CurrentUser.FacilityId</span>
+                        }
+                        <div class="dropdown">
+                            <button class="tf-profile-button dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="tf-avatar tf-avatar-small">@((CurrentUser.FullName?.FirstOrDefault() ?? 'U').ToString().ToUpperInvariant())</span>
+                                <span class="d-none d-sm-block"><strong>@CurrentUser.FullName</strong><small>@CurrentUser.Role</small></span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li><span class="dropdown-item-text small text-muted">@CurrentUser.Email</span></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><a class="dropdown-item" asp-controller="Home" asp-action="Index">Trang chủ</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </header>
+                <main role="main" class="tf-content">
+                    @RenderBody()
+                </main>
+                <footer class="tf-footer">© 2026 <strong>TutorFlow</strong><span>Hệ thống quản lý trung tâm dạy thêm</span></footer>
             </div>
-        </nav>
-    </header>
-
-    <div class="container-fluid px-4">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="border-top footer text-muted py-3 mt-4">
-        <div class="container-fluid px-4 text-center">
-            &copy; 2026 - <strong>TutorFlow</strong> - Hệ thống quản lý trung tâm dạy thêm (ASP.NET Core MVC)
         </div>
-    </footer>
+    }
+    else
+    {
+        <div class="tf-public-shell">
+            <header class="tf-public-topbar">
+                <a class="tf-public-brand" asp-controller="Home" asp-action="Index"><span class="tf-brand-mark">T</span>Tutor<span>Flow</span></a>
+                <a class="btn btn-primary" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+            </header>
+            <main role="main" class="tf-public-content">@RenderBody()</main>
+            <footer class="tf-footer">© 2026 <strong>TutorFlow</strong><span>Hệ thống quản lý trung tâm dạy thêm</span></footer>
+        </div>
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

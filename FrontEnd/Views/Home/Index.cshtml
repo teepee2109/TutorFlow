@@ -1,103 +1,70 @@
 @inject ICurrentUser CurrentUser
 @{
-    ViewData["Title"] = "Trang chủ - TutorFlow";
+    ViewData["Title"] = "Trang chủ";
 }
 
-<div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
-    <div class="container-fluid py-3">
-        <h1 class="display-5 fw-bold text-primary">Chào mừng đến với TutorFlow (MVC)</h1>
-        <p class="col-md-8 fs-5 text-muted">
-            Hệ thống quản lý trung tâm dạy thêm: Xếp lớp, chống trùng lịch phòng & ca học,
-            phân công giảng viên, điểm danh buổi học và quản lý học phí chính xác.
-        </p>
+<section class="tf-welcome-panel">
+    <div class="tf-welcome-copy">
+        <span class="tf-eyebrow">NỀN TẢNG QUẢN LÝ ĐÀO TẠO</span>
+        <h1>@(CurrentUser.IsAuthenticated ? $"Chào mừng trở lại, {CurrentUser.FullName}" : "Dạy học hiệu quả, vận hành nhẹ nhàng")</h1>
+        <p>TutorFlow kết nối lớp học, lịch giảng dạy, điểm danh và học phí trong một hệ thống quản lý thống nhất.</p>
         @if (!CurrentUser.IsAuthenticated)
         {
-            <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-lg px-4 me-md-2">Đăng nhập hệ thống</a>
+            <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-lg">Đăng nhập hệ thống <span aria-hidden="true">→</span></a>
         }
         else
         {
-            <div class="alert alert-info d-inline-block">
-                Xin chào, <strong>@CurrentUser.FullName</strong>! Vai trò hiện tại của bạn là: <strong>@CurrentUser.Role</strong>.
-            </div>
+            <span class="tf-role-label">Bạn đang đăng nhập với vai trò <strong>@CurrentUser.Role</strong></span>
         }
     </div>
-</div>
+    <div class="tf-welcome-art" aria-hidden="true">
+        <div class="tf-art-orbit tf-art-orbit-one"></div><div class="tf-art-orbit tf-art-orbit-two"></div>
+        <div class="tf-art-card tf-art-card-main"><span>▣</span><strong>Lớp học</strong><small>Lịch trình rõ ràng</small></div>
+        <div class="tf-art-card tf-art-card-side"><span>✓</span><strong>Điểm danh</strong></div>
+        <div class="tf-art-dot"></div>
+    </div>
+</section>
 
 @if (CurrentUser.IsAuthenticated)
 {
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        @if (CurrentUser.IsInRole("Admin"))
-        {
-            <div class="col">
-                <div class="card h-100 border-primary shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-primary">📊 Dashboard Thống Kê</h5>
-                        <p class="card-text text-muted">Xem tổng quan số phòng, lớp học, giảng viên, học viên và học phí toàn hệ thống.</p>
-                        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-primary">Mở Dashboard</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card h-100 border-primary shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-primary">👥 Quản Lý Người Dùng</h5>
-                        <p class="card-text text-muted">Tạo mới, phân vai trò, gán Facility Manager cho từng cơ sở, khóa hoặc mở tài khoản.</p>
-                        <a asp-controller="Users" asp-action="Index" class="btn btn-outline-primary">Quản lý tài khoản</a>
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (CurrentUser.IsInRole("GrandManager"))
-        {
-            <div class="col">
-                <div class="card h-100 border-success shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-success">📚 Lớp Học & Buổi Học</h5>
-                        <p class="card-text text-muted">Tạo lớp học mới, tự động sinh các buổi học với thuật toán chống trùng ca, phòng và giảng viên.</p>
-                        <a asp-controller="Classes" asp-action="Index" class="btn btn-outline-success">Xem danh sách lớp</a>
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (CurrentUser.IsInRole("FacilityManager"))
-        {
-            <div class="col">
-                <div class="card h-100 border-info shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-info">🏢 Lưới Phòng Theo Ca</h5>
-                        <p class="card-text text-muted">Xem trực quan phòng trống, đang học hoặc đóng bảo trì theo từng ngày và ca học.</p>
-                        <a asp-controller="Rooms" asp-action="Index" class="btn btn-outline-info">Xem sơ đồ phòng</a>
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (CurrentUser.IsInRole("Lecturer"))
-        {
-            <div class="col">
-                <div class="card h-100 border-warning shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-dark">📅 Lịch Dạy & Điểm Danh</h5>
-                        <p class="card-text text-muted">Theo dõi lịch dạy các buổi trong tuần và thực hiện điểm danh học viên đúng giờ.</p>
-                        <a asp-controller="Schedule" asp-action="Index" class="btn btn-outline-dark">Lịch dạy của tôi</a>
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (CurrentUser.IsInRole("Student"))
-        {
-            <div class="col">
-                <div class="card h-100 border-secondary shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-secondary">📖 Cổng Học Viên</h5>
-                        <p class="card-text text-muted">Xem lịch học, kết quả điểm danh các buổi và thông tin học phí cần đóng.</p>
-                        <a asp-controller="StudentSchedule" asp-action="Index" class="btn btn-outline-secondary">Lịch học của tôi</a>
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
+    <section class="mt-4">
+        <div class="d-flex align-items-end justify-content-between gap-2 mb-3">
+            <div><h2 class="tf-section-title">Lối tắt công việc</h2><p class="text-muted small mb-0">Chọn khu vực bạn cần truy cập.</p></div>
+        </div>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+            @if (CurrentUser.IsInRole("Admin"))
+            {
+                <div class="col"><a asp-controller="Admin" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">▦</span><strong>Dashboard quản trị</strong><small>Theo dõi tình hình toàn hệ thống</small></a></div>
+                <div class="col"><a asp-controller="Users" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">♙</span><strong>Quản lý người dùng</strong><small>Tạo tài khoản và phân vai trò</small></a></div>
+            }
+            @if (CurrentUser.IsInRole("GrandManager"))
+            {
+                <div class="col"><a asp-controller="Classes" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">▣</span><strong>Lớp học &amp; buổi học</strong><small>Quản lý lớp và lịch học</small></a></div>
+                <div class="col"><a asp-controller="Enrollments" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">＋</span><strong>Ghi danh</strong><small>Quản lý học viên trong lớp</small></a></div>
+            }
+            @if (CurrentUser.IsInRole("FacilityManager"))
+            {
+                <div class="col"><a asp-controller="Rooms" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">⌂</span><strong>Lưới phòng theo ca</strong><small>Xem phòng trống, đang học và bảo trì</small></a></div>
+                <div class="col"><a asp-controller="ChangeRequests" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">⇄</span><strong>Yêu cầu đổi phòng / ca</strong><small>Kiểm tra các yêu cầu cần xử lý</small></a></div>
+            }
+            @if (CurrentUser.IsInRole("Lecturer"))
+            {
+                <div class="col"><a asp-controller="Schedule" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">▦</span><strong>Lịch dạy &amp; điểm danh</strong><small>Xem lịch và thực hiện điểm danh</small></a></div>
+                <div class="col"><a asp-controller="ChangeRequests" asp-action="Mine" class="tf-quick-card"><span class="tf-quick-icon">⇄</span><strong>Yêu cầu của tôi</strong><small>Theo dõi yêu cầu đổi phòng / ca</small></a></div>
+            }
+            @if (CurrentUser.IsInRole("Student"))
+            {
+                <div class="col"><a asp-controller="StudentSchedule" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">▦</span><strong>Lịch học của tôi</strong><small>Xem các buổi học sắp tới</small></a></div>
+                <div class="col"><a asp-controller="StudentTuition" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">₫</span><strong>Học phí</strong><small>Xem thông tin học phí</small></a></div>
+            }
+        </div>
+    </section>
+}
+else
+{
+    <section class="tf-feature-grid">
+        <article><span>01</span><strong>Quản lý lớp học</strong><p>Tập trung thông tin lớp, học viên và lịch buổi học.</p></article>
+        <article><span>02</span><strong>Kiểm soát lịch trình</strong><p>Hỗ trợ sắp xếp phòng, ca và giảng viên.</p></article>
+        <article><span>03</span><strong>Theo dõi học phí</strong><p>Tra cứu tình trạng học phí và thanh toán.</p></article>
+    </section>
 }

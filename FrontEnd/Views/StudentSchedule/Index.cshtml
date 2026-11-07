@@ -13,7 +13,7 @@
 </div>
 @if (ViewBag.ErrorMessage is string error) { <div class="alert alert-danger">@error</div> }
 <div class="card border-0 shadow-sm"><div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
+    <table class="table table-hover align-middle mb-0 tf-paginated-table">
         <thead class="table-light"><tr><th>Ngày / ca</th><th>Lớp</th><th>Phòng</th><th>Giảng viên</th><th>Buổi học</th><th>Điểm danh</th></tr></thead>
         <tbody>
             @if (Model.Sessions.Count == 0) { <tr><td colspan="6" class="text-center text-muted py-5">Không có buổi học trong khoảng thời gian này.</td></tr> }

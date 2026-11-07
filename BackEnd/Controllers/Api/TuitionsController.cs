@@ -8,7 +8,7 @@ using BackEnd.Services.Tuition;
 namespace BackEnd.Controllers.Api;
 
 [ApiController]
-[Authorize(Roles = "GrandManager,Lecturer")]
+[Authorize(Roles = "Admin,GrandManager,Lecturer")]
 [Route("api/tuitions")]
 public sealed class TuitionsController : ControllerBase
 {

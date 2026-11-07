@@ -6,9 +6,9 @@
     }
   },
   "AllowedHosts": "*",
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=YOUR_SQL_SERVER;Database=TutorFlow;User Id=YOUR_USER;Password=YOUR_PASSWORD;TrustServerCertificate=True"
-  },
+    "ConnectionStrings": {
+        "MyCnn": "Server=LAPTOP-G2DG8MFM\\SQLEXPRESS;uid=sa;password=123;Database=TutorFlow;Encrypt=True;TrustServerCertificate=True;"
+    },
   "Jwt": {
     "Issuer": "TutorFlow.BackEnd",
     "Audience": "TutorFlow.FrontEnd",

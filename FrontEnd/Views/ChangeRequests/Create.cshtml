@@ -1,11 +1,80 @@
+@model FrontEnd.Models.CreateRoomChangeRequestViewModel
 @{
     ViewData["Title"] = "Gửi yêu cầu đổi phòng / ca";
 }
 
-<div class="container-fluid py-4">
-    <h4 class="mb-3"><i class="bi bi-send me-2"></i>Gửi yêu cầu đổi phòng / ca</h4>
-    <div class="alert alert-info">
-        <i class="bi bi-hammer me-2"></i>
-        Form gửi yêu cầu từ phía Lecturer thuộc phần việc Dev D; trang này sẽ được nối với lịch dạy của giảng viên.
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">📨 Gửi yêu cầu đổi phòng / ca</h2>
+        <p class="text-muted mb-0">Facility Manager của cơ sở đích sẽ xem xét yêu cầu.</p>
     </div>
+    <a asp-action="Mine" class="btn btn-outline-secondary">Yêu cầu của tôi</a>
 </div>
+
+@if (ViewBag.OptionsErrorMessage is string optionsError)
+{
+    <div class="alert alert-danger">Không tải được dữ liệu lựa chọn: @optionsError</div>
+}
+<div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+@if (Model.Options.Scopes.Count == 0)
+{
+    <div class="alert alert-info">Bạn chưa có lớp hoặc buổi Scheduled sắp tới để gửi yêu cầu.</div>
+}
+else
+{
+    <form method="post" asp-action="Create">
+        @Html.AntiForgeryToken()
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label asp-for="ScopeKey" class="form-label">Phạm vi yêu cầu</label>
+                        <select asp-for="ScopeKey" class="form-select" required>
+                            <option value="">-- Chọn buổi hoặc cả lớp --</option>
+                            @foreach (var scope in Model.Options.Scopes)
+                            {
+                                <option value="@scope.Key">@scope.DisplayName</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ScopeKey" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="RequestedRoomId" class="form-label">Phòng mong muốn</label>
+                        <select asp-for="RequestedRoomId" class="form-select">
+                            <option value="">-- Giữ nguyên phòng --</option>
+                            @foreach (var room in Model.Options.Rooms)
+                            {
+                                <option value="@room.RoomId">@room.RoomNumber · @room.FacilityName @(room.Capacity.HasValue ? $"({room.Capacity} chỗ)" : "")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="RequestedShiftId" class="form-label">Ca mong muốn</label>
+                        <select asp-for="RequestedShiftId" class="form-select">
+                            <option value="">-- Giữ nguyên ca --</option>
+                            @foreach (var shift in Model.Options.Shifts)
+                            {
+                                <option value="@shift.ShiftId">@shift.ShiftName</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Reason" class="form-label">Lý do</label>
+                        <textarea asp-for="Reason" rows="4" maxlength="500" class="form-control" placeholder="Nêu lý do cần đổi phòng hoặc ca"></textarea>
+                        <span asp-validation-for="Reason" class="text-danger small"></span>
+                    </div>
+                </div>
+                <div class="form-text mt-3">Cần chọn ít nhất một trong hai thông tin: phòng mới hoặc ca mới.</div>
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-end gap-2">
+                <a asp-controller="Schedule" asp-action="Index" class="btn btn-outline-secondary">Quay lại lịch dạy</a>
+                <button type="submit" class="btn btn-primary">Gửi yêu cầu</button>
+            </div>
+        </div>
+    </form>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

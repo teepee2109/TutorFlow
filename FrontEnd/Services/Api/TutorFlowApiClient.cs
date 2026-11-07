@@ -142,6 +142,44 @@ public sealed class TutorFlowApiClient
     public Task<ApiResponse> RejectRoomChangeRequestAsync(int requestId, string reviewNote) =>
         SendAsync(HttpMethod.Post, $"api/room-change-requests/{requestId}/reject", new { ReviewNote = reviewNote });
 
+    public Task<ApiResponse<List<LecturerScheduleSessionViewModel>>> GetLecturerScheduleAsync(DateOnly from, DateOnly to) =>
+        SendAsync<List<LecturerScheduleSessionViewModel>>(HttpMethod.Get,
+            $"api/lecturer/schedule?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+
+    public Task<ApiResponse<AttendanceRosterViewModel>> GetAttendanceRosterAsync(int sessionId) =>
+        SendAsync<AttendanceRosterViewModel>(HttpMethod.Get, $"api/attendance/{sessionId}/roster");
+
+    public Task<ApiResponse> SaveAttendanceAsync(int sessionId, IEnumerable<AttendanceRosterStudentViewModel> students) =>
+        SendAsync(HttpMethod.Put, $"api/attendance/{sessionId}", new
+        {
+            Items = students.Select(student => new
+            {
+                student.StudentId,
+                Status = student.AttendanceStatus,
+                student.Note
+            }).ToList()
+        });
+
+    public Task<ApiResponse> CompleteAttendanceSessionAsync(int sessionId) =>
+        SendAsync(HttpMethod.Post, $"api/attendance/{sessionId}/complete");
+
+    public Task<ApiResponse<LecturerChangeRequestOptionsViewModel>> GetLecturerChangeRequestOptionsAsync() =>
+        SendAsync<LecturerChangeRequestOptionsViewModel>(HttpMethod.Get, "api/room-change-requests/options");
+
+    public Task<ApiResponse<LecturerRoomChangeRequestViewModel>> CreateLecturerRoomChangeRequestAsync(
+        int classId, int? sessionId, int? requestedRoomId, int? requestedShiftId, string reason) =>
+        SendAsync<LecturerRoomChangeRequestViewModel>(HttpMethod.Post, "api/room-change-requests", new
+        {
+            ClassId = classId,
+            SessionId = sessionId,
+            RequestedRoomId = requestedRoomId,
+            RequestedShiftId = requestedShiftId,
+            Reason = reason
+        });
+
+    public Task<ApiResponse<List<LecturerRoomChangeRequestViewModel>>> GetMyRoomChangeRequestsAsync() =>
+        SendAsync<List<LecturerRoomChangeRequestViewModel>>(HttpMethod.Get, "api/room-change-requests/mine");
+
     private async Task<ApiResponse<T>> SendAsync<T>(HttpMethod method, string path, object? body = null)
     {
         using var request = new HttpRequestMessage(method, path);

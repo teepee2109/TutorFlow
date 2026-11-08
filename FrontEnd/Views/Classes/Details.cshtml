@@ -1,33 +1,167 @@
 @model FrontEnd.Models.ClassDetailViewModel
 @{
-    ViewData["Title"] = "Lịch lớp học";
+    ViewData["Title"] = $"Buổi học - {Model.ClassName}";
+    var canEditSessions = Model.Status == "Active" && ViewBag.OptionsErrorMessage is not string;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div>
-        <h2 class="fw-bold mb-1">🗓️ @Model.ClassName</h2>
-        <p class="text-muted mb-0">@Model.SubjectName · @Model.FacilityName · Phòng @Model.RoomNumber · @Model.ShiftName</p>
+        <div class="text-muted small mb-1">Quản lý lớp học / Buổi học</div>
+        <h2 class="fw-bold mb-1">@Model.ClassName</h2>
+        <p class="text-muted mb-0">@Model.SubjectName · @Model.LecturerName · @Model.FacilityName</p>
     </div>
     <a asp-action="Index" class="btn btn-outline-secondary">Quay lại danh sách</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success" role="alert">@success</div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+@if (ViewBag.OptionsErrorMessage is string optionsError)
+{
+    <div class="alert alert-warning" role="alert">
+        Không tải được danh sách phòng, ca và giảng viên nên các thao tác cập nhật buổi học tạm thời bị ẩn. @optionsError
+    </div>
+}
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-6 col-lg-3"><div class="small text-muted">Trạng thái</div><strong>@(Model.Status == "Active" ? "Đang mở" : "Đã đóng")</strong></div>
+            <div class="col-6 col-lg-3"><div class="small text-muted">Lịch học</div><strong>@Model.DaysOfWeek · @Model.ShiftName</strong></div>
+            <div class="col-6 col-lg-3"><div class="small text-muted">Phòng mặc định</div><strong>@Model.FacilityName · Phòng @Model.RoomNumber</strong></div>
+            <div class="col-6 col-lg-3"><div class="small text-muted">Thời gian</div><strong>@Model.StartDate.ToString("dd/MM/yyyy") – @Model.EndDate.ToString("dd/MM/yyyy")</strong></div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+    <div>
+        <h3 class="h5 fw-bold mb-1">Danh sách buổi học</h3>
+        <p class="text-muted small mb-0">Chỉ buổi ở trạng thái đã lên lịch mới có thể đổi lịch, hủy hoặc phân công dạy thay.</p>
+    </div>
+    <span class="badge text-bg-light">@Model.Sessions.Count buổi</span>
 </div>
 
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 tf-paginated-table">
-            <thead class="table-light"><tr><th>Ngày học</th><th>Phòng</th><th>Ca</th><th>Giảng viên</th><th>Trạng thái</th></tr></thead>
+            <thead class="table-light">
+                <tr>
+                    <th>Ngày</th>
+                    <th>Ca / Phòng</th>
+                    <th>Giảng viên</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
             <tbody>
                 @if (Model.Sessions.Count == 0)
                 {
-                    <tr><td colspan="5" class="text-center text-muted py-4">Lớp chưa có buổi học.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-5">Lớp chưa có buổi học nào.</td></tr>
                 }
                 @foreach (var session in Model.Sessions.OrderBy(item => item.SessionDate))
                 {
                     <tr>
-                        <td>@session.SessionDate.ToString("dd/MM/yyyy")</td>
-                        <td>@session.RoomNumber</td>
-                        <td>@session.ShiftName</td>
+                        <td class="text-nowrap">@session.SessionDate.ToString("dd/MM/yyyy")</td>
+                        <td>@session.ShiftName<div class="small text-muted">Phòng @session.RoomNumber</div></td>
                         <td>@session.LecturerName</td>
-                        <td>@session.Status</td>
+                        <td>
+                            @switch (session.Status)
+                            {
+                                case "Scheduled":
+                                    <span class="badge text-bg-primary">Đã lên lịch</span>
+                                    break;
+                                case "Completed":
+                                    <span class="badge text-bg-success">Đã hoàn thành</span>
+                                    break;
+                                case "Cancelled":
+                                    <span class="badge text-bg-secondary">Đã hủy</span>
+                                    break;
+                                default:
+                                    <span class="badge text-bg-light">@session.Status</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (session.Status == "Scheduled" && canEditSessions)
+                            {
+                                <details class="d-inline-block text-start">
+                                    <summary class="btn btn-sm btn-outline-primary">Quản lý</summary>
+                                    <div class="position-absolute end-0 mt-2 p-3 bg-white border rounded shadow" style="z-index: 5; width: min(34rem, calc(100vw - 2rem));">
+                                        <form method="post" asp-action="Reschedule" class="mb-3">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="classId" value="@Model.ClassId" />
+                                            <input type="hidden" name="sessionId" value="@session.SessionId" />
+                                            <div class="fw-semibold mb-2">Đổi lịch buổi học</div>
+                                            <div class="row g-2">
+                                                <div class="col-12 col-md-4">
+                                                    <label class="form-label small" for="room-@session.SessionId">Phòng mới</label>
+                                                    <select id="room-@session.SessionId" name="RoomId" class="form-select form-select-sm">
+                                                        <option value="">Giữ phòng hiện tại</option>
+                                                        @foreach (var room in Model.Options.Rooms)
+                                                        {
+                                                            var facilityName = Model.Options.Facilities.FirstOrDefault(item => item.Id == room.FacilityId)?.Name ?? "Cơ sở khác";
+                                                            <option value="@room.Id">@room.Name · @facilityName</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-12 col-md-4">
+                                                    <label class="form-label small" for="shift-@session.SessionId">Ca mới</label>
+                                                    <select id="shift-@session.SessionId" name="ShiftId" class="form-select form-select-sm">
+                                                        <option value="">Giữ ca hiện tại</option>
+                                                        @foreach (var shift in Model.Options.Shifts)
+                                                        {
+                                                            <option value="@shift.Id">@shift.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-12 col-md-4">
+                                                    <label class="form-label small" for="date-@session.SessionId">Ngày mới</label>
+                                                    <input id="date-@session.SessionId" name="SessionDate" type="date" class="form-control form-control-sm" />
+                                                </div>
+                                            </div>
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input" type="checkbox" name="ApplyToWholeClass" value="true" id="whole-class-@session.SessionId" />
+                                                <label class="form-check-label small" for="whole-class-@session.SessionId">Áp dụng thay đổi cho các buổi sắp tới của cả lớp</label>
+                                            </div>
+                                            <div class="form-text mb-2">Nếu chọn ngày mới cho cả lớp, các buổi được dịch cùng số ngày. Phòng dùng cho cả lớp phải thuộc @Model.FacilityName.</div>
+                                            <button type="submit" class="btn btn-sm btn-primary">Lưu lịch mới</button>
+                                        </form>
+
+                                        <form method="post" asp-action="AssignSubstitute" class="row g-2 align-items-end mb-3">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="classId" value="@Model.ClassId" />
+                                            <input type="hidden" name="sessionId" value="@session.SessionId" />
+                                            <div class="col">
+                                                <label class="form-label small" for="lecturer-@session.SessionId">Giảng viên dạy thay</label>
+                                                <select id="lecturer-@session.SessionId" name="lecturerId" class="form-select form-select-sm" required>
+                                                    <option value="">-- Chọn giảng viên --</option>
+                                                    @foreach (var lecturer in Model.Options.Lecturers.Where(item => item.Id != session.LecturerId))
+                                                    {
+                                                        <option value="@lecturer.Id">@lecturer.Name</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-auto"><button type="submit" class="btn btn-sm btn-outline-primary">Phân công</button></div>
+                                        </form>
+
+                                        <form method="post" asp-action="CancelSession" asp-route-classId="@Model.ClassId" asp-route-sessionId="@session.SessionId" onsubmit="return confirm('Bạn có chắc muốn hủy buổi học này?')">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Hủy buổi học</button>
+                                        </form>
+                                    </div>
+                                </details>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Không có thao tác</span>
+                            }
+                        </td>
                     </tr>
                 }
             </tbody>

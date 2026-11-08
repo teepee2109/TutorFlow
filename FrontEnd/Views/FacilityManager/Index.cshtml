@@ -19,11 +19,13 @@
     </form>
 </div>
 
-@if (ViewBag.ErrorMessage != null)
+@if (ViewBag.ErrorMessage is string error)
 {
-    <div class="alert alert-danger" role="alert">@ViewBag.ErrorMessage</div>
+    <div class="alert alert-danger" role="alert">@error</div>
 }
 
+@if (ViewBag.DashboardLoaded == true)
+{
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <section class="tf-stat-card primary" data-icon="⌂" aria-label="Cơ sở vật chất">
@@ -49,6 +51,7 @@
 </div>
 
 <partial name="_RoomShiftStatusTable" model="Model" />
+}
 
 <div class="row g-3 mt-1">
     <div class="col-md-4"><a asp-controller="Rooms" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">⌂</span><strong>Quản lý phòng</strong><small>Xem phòng đang dùng, còn trống và bảo trì</small></a></div>

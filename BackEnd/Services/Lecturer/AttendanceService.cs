@@ -23,6 +23,70 @@ public sealed class AttendanceService : IAttendanceService
         _currentUser = currentUser;
     }
 
+    public async Task<Result<List<AttendanceSessionListDto>>> GetSessionsAsync(DateOnly from, DateOnly to)
+    {
+        if (from > to)
+        {
+            return Result<List<AttendanceSessionListDto>>.Fail(
+                ScheduleError.ValidationError, "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var query = _db.ClassSessions.AsNoTracking()
+            .Where(session => session.SessionDate >= from && session.SessionDate <= to
+                && session.SessionDate <= today && session.Status != "Cancelled");
+
+        if (_currentUser.IsInRole("FacilityManager"))
+        {
+            if (!_currentUser.FacilityId.HasValue)
+            {
+                return Result<List<AttendanceSessionListDto>>.Fail(
+                    ScheduleError.AttendanceForbidden, "Tài khoản Facility Manager chưa được gán cơ sở.");
+            }
+            var facilityId = _currentUser.FacilityId.Value;
+            query = query.Where(session => session.Class.FacilityId == facilityId);
+        }
+        else if (_currentUser.IsInRole("GrandManager"))
+        {
+            // Grand Manager may read attendance information across all facilities.
+        }
+        else if (_currentUser.IsInRole("Lecturer") && _currentUser.UserId.HasValue)
+        {
+            var lecturerId = _currentUser.UserId.Value;
+            query = query.Where(session => session.LecturerId == lecturerId);
+        }
+        else
+        {
+            return Result<List<AttendanceSessionListDto>>.Fail(
+                ScheduleError.AttendanceForbidden, "Tài khoản không có quyền xem danh sách điểm danh.");
+        }
+
+        var sessions = await query
+            .OrderByDescending(session => session.SessionDate)
+            .ThenBy(session => session.ShiftId)
+            .Select(session => new AttendanceSessionListDto
+            {
+                SessionId = session.SessionId,
+                ClassId = session.ClassId,
+                ClassName = session.Class.ClassName,
+                SessionDate = session.SessionDate,
+                ShiftName = session.Shift.ShiftName,
+                RoomNumber = session.Room.RoomNumber,
+                FacilityName = session.Class.Facility.FacilityName,
+                LecturerName = session.Lecturer.FullName,
+                Status = session.Status,
+                EligibleStudentCount = _db.Enrollments.Count(enrollment => enrollment.ClassId == session.ClassId
+                    && enrollment.Status == "Active" && enrollment.EnrollDate <= session.SessionDate),
+                RecordedAttendanceCount = _db.Attendances.Count(attendance => attendance.SessionId == session.SessionId
+                    && _db.Enrollments.Any(enrollment => enrollment.ClassId == session.ClassId
+                        && enrollment.StudentId == attendance.StudentId
+                        && enrollment.Status == "Active" && enrollment.EnrollDate <= session.SessionDate))
+            })
+            .ToListAsync();
+
+        return Result<List<AttendanceSessionListDto>>.Ok(sessions);
+    }
+
     public async Task<Result<AttendanceRosterDto>> GetRosterAsync(int sessionId)
     {
         var session = await _db.ClassSessions.AsNoTracking()
@@ -35,7 +99,7 @@ public sealed class AttendanceService : IAttendanceService
             return Result<AttendanceRosterDto>.Fail(ScheduleError.NotFound, "Không tìm thấy buổi học.");
         }
 
-        var accessError = ValidateLecturerAccess(session);
+        var accessError = ValidateRosterReadAccess(session);
         if (accessError != null)
         {
             return Result<AttendanceRosterDto>.Fail(accessError.Value.Error, accessError.Value.Message);
@@ -186,22 +250,58 @@ public sealed class AttendanceService : IAttendanceService
             return Result.Fail(ScheduleError.AttendanceForbidden, "Chỉ giảng viên đang đăng nhập được hoàn tất buổi học.");
         }
 
-        var session = await _db.ClassSessions.FirstOrDefaultAsync(item => item.SessionId == sessionId);
-        if (session == null) return Result.Fail(ScheduleError.NotFound, "Không tìm thấy buổi học.");
-        var accessError = ValidateLecturerAccess(session);
-        if (accessError != null) return Result.Fail(accessError.Value.Error, accessError.Value.Message);
-        var sessionError = ValidateAttendanceSession(session);
-        if (sessionError != null) return Result.Fail(sessionError.Value.Error, sessionError.Value.Message);
-        if (session.Status == "Completed") return Result.Ok("Buổi học đã được hoàn tất trước đó.");
-
-        session.Status = "Completed";
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         try
         {
+            var session = await _db.ClassSessions.FirstOrDefaultAsync(item => item.SessionId == sessionId);
+            if (session == null)
+            {
+                await transaction.RollbackAsync();
+                return Result.Fail(ScheduleError.NotFound, "Không tìm thấy buổi học.");
+            }
+
+            var accessError = ValidateLecturerAccess(session);
+            if (accessError != null)
+            {
+                await transaction.RollbackAsync();
+                return Result.Fail(accessError.Value.Error, accessError.Value.Message);
+            }
+            var sessionError = ValidateAttendanceSession(session);
+            if (sessionError != null)
+            {
+                await transaction.RollbackAsync();
+                return Result.Fail(sessionError.Value.Error, sessionError.Value.Message);
+            }
+            if (session.Status == "Completed")
+            {
+                await transaction.CommitAsync();
+                return Result.Ok("Buổi học đã được hoàn tất trước đó.");
+            }
+
+            var eligibleStudentIds = await _db.Enrollments
+                .Where(item => item.ClassId == session.ClassId
+                    && item.Status == "Active"
+                    && item.EnrollDate <= session.SessionDate)
+                .Select(item => item.StudentId)
+                .ToListAsync();
+            var markedCount = await _db.Attendances.CountAsync(item =>
+                item.SessionId == sessionId && eligibleStudentIds.Contains(item.StudentId));
+            if (markedCount < eligibleStudentIds.Count)
+            {
+                await transaction.RollbackAsync();
+                return Result.Fail(ScheduleError.ValidationError,
+                    $"Chưa điểm danh đủ học viên ({markedCount}/{eligibleStudentIds.Count}). Hãy lưu điểm danh cho toàn bộ danh sách trước khi hoàn tất.");
+            }
+
+            session.Status = "Completed";
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
             return Result.Ok("Đã hoàn tất buổi học.");
         }
         catch (Exception exception)
         {
+            await transaction.RollbackAsync();
+            _db.ChangeTracker.Clear();
             var mapped = SqlExceptionMapper.Map(exception);
             return Result.Fail(mapped?.Error ?? ScheduleError.ValidationError,
                 mapped?.Message ?? "Không thể hoàn tất buổi học lúc này.");
@@ -210,6 +310,29 @@ public sealed class AttendanceService : IAttendanceService
 
     private bool IsCurrentLecturer(int lecturerId) =>
         _currentUser.IsInRole("Lecturer") && _currentUser.UserId == lecturerId;
+
+    private (ScheduleError Error, string Message)? ValidateRosterReadAccess(ClassSession session)
+    {
+        if (_currentUser.IsInRole("Lecturer"))
+        {
+            return ValidateLecturerAccess(session);
+        }
+
+        if (_currentUser.IsInRole("GrandManager"))
+        {
+            return null;
+        }
+
+        if (_currentUser.IsInRole("FacilityManager")
+            && _currentUser.FacilityId.HasValue
+            && session.Class.FacilityId == _currentUser.FacilityId.Value)
+        {
+            return null;
+        }
+
+        return (ScheduleError.AttendanceForbidden,
+            "Chỉ giảng viên phụ trách, Facility Manager của cơ sở hoặc Grand Manager được xem danh sách này.");
+    }
 
     private (ScheduleError Error, string Message)? ValidateLecturerAccess(ClassSession session)
     {

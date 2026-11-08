@@ -4,13 +4,28 @@
     This file only inserts missing sample rows; it does not drop or recreate tables.
     It is safe to run more than once.
 
+    The file is UTF-8. When using sqlcmd, run with: sqlcmd -f 65001 -i .\seed.sql -b
+
     Demo account password: Dev@12345
 */
 USE TutorFlow;
 GO
 
+IF UNICODE(SUBSTRING(N'Lớp', 2, 1)) <> 7899
+BEGIN
+    THROW 51005, 'seed.sql must be read as UTF-8. Run sqlcmd with -f 65001.', 1;
+END;
+GO
+
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
+SET ANSI_NULLS ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET QUOTED_IDENTIFIER ON;
+SET NUMERIC_ROUNDABORT OFF;
 
 IF OBJECT_ID(N'dbo.Users', N'U') IS NULL
    OR OBJECT_ID(N'dbo.Facilities', N'U') IS NULL
@@ -46,6 +61,10 @@ DECLARE @DemoRows TABLE (RowNumber INT NOT NULL PRIMARY KEY);
 INSERT INTO @DemoRows (RowNumber)
 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
        (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+DECLARE @ClassStudentSlots TABLE (SlotNumber INT NOT NULL PRIMARY KEY);
+INSERT INTO @ClassStudentSlots (SlotNumber)
+VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15);
 
 DECLARE @DateOffsets TABLE (OffsetDays INT NOT NULL PRIMARY KEY);
 WHILE @i <= 365
@@ -138,6 +157,25 @@ BEGIN TRY
     ) AS account
     WHERE NOT EXISTS (SELECT 1 FROM dbo.Users existingUser WHERE existingUser.Email = account.Email);
 
+    /* Create 14 additional demo students for each sample class (15 students per class total). */
+    INSERT INTO dbo.Users (FullName, Email, PasswordHash, PhoneNumber, RoleId, IsActive, IsDeleted)
+    SELECT
+        CONCAT(N'Học viên lớp ', RIGHT(CONCAT(N'00', demo.RowNumber), 2), N' - ', RIGHT(CONCAT(N'00', slot.SlotNumber), 2)),
+        CONCAT(N'student_demo_', RIGHT(CONCAT(N'00', demo.RowNumber), 2), N'_', RIGHT(CONCAT(N'00', slot.SlotNumber), 2), N'@tutorflow.local'),
+        @DemoPasswordHash,
+        CONCAT(N'0985', RIGHT(CONCAT(N'00', demo.RowNumber), 2), RIGHT(CONCAT(N'00', slot.SlotNumber), 2)),
+        @StudentRoleId,
+        1,
+        0
+    FROM @DemoRows AS demo
+    JOIN @ClassStudentSlots AS slot ON 1 = 1
+    WHERE slot.SlotNumber > 1
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.Users existingUser
+          WHERE existingUser.Email = CONCAT(N'student_demo_', RIGHT(CONCAT(N'00', demo.RowNumber), 2), N'_', RIGHT(CONCAT(N'00', slot.SlotNumber), 2), N'@tutorflow.local')
+      );
+
     SELECT @GrandManagerId = UserId
     FROM dbo.Users
     WHERE Email = N'gm@tutorflow.local';
@@ -225,12 +263,17 @@ BEGIN TRY
         WHERE currentClass.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2))
     );
 
-    /* One active enrollment per sample student/class. */
+    /* Exactly 15 sample students are assigned to each demo class. */
     INSERT INTO dbo.Enrollments (StudentId, ClassId, EnrollDate, Status)
     SELECT student.UserId, class.ClassId, DATEADD(DAY, -60, @Today), N'Active'
     FROM @DemoRows AS demo
+    JOIN @ClassStudentSlots AS slot ON 1 = 1
     JOIN dbo.Users AS student
-      ON student.Email = CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
+      ON student.Email = CASE
+          WHEN slot.SlotNumber = 1
+              THEN CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
+          ELSE CONCAT(N'student_demo_', RIGHT(CONCAT(N'00', demo.RowNumber), 2), N'_', RIGHT(CONCAT(N'00', slot.SlotNumber), 2), N'@tutorflow.local')
+      END
     JOIN dbo.Classes AS class
       ON class.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2))
     WHERE NOT EXISTS
@@ -255,6 +298,56 @@ BEGIN TRY
         WHERE targetSession.ClassId = class.ClassId
           AND targetSession.Status <> N'Cancelled'
     );
+
+    /* Fill every other active class to 15 active students using one student account per class. */
+    INSERT INTO dbo.Users (FullName, Email, PasswordHash, PhoneNumber, RoleId, IsActive, IsDeleted)
+    SELECT
+        CONCAT(N'Học viên bổ sung ', class.ClassId, N' - ', RIGHT(CONCAT(N'00', slot.SlotNumber), 2)),
+        CONCAT(N'student_class_', class.ClassId, N'_', slot.SlotNumber, N'@tutorflow.local'),
+        @DemoPasswordHash,
+        CONCAT(N'0986', RIGHT(CONCAT(N'000000', class.ClassId), 6), RIGHT(CONCAT(N'00', slot.SlotNumber), 2)),
+        @StudentRoleId,
+        1,
+        0
+    FROM dbo.Classes AS class
+    JOIN @ClassStudentSlots AS slot
+      ON slot.SlotNumber >
+      (
+          SELECT COUNT_BIG(*)
+          FROM dbo.Enrollments enrollment
+          WHERE enrollment.ClassId = class.ClassId
+            AND enrollment.Status = N'Active'
+      )
+    WHERE class.Status = N'Active'
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.Users existingUser
+          WHERE existingUser.Email = CONCAT(N'student_class_', class.ClassId, N'_', slot.SlotNumber, N'@tutorflow.local')
+      );
+
+    INSERT INTO dbo.Enrollments (StudentId, ClassId, EnrollDate, Status)
+    SELECT student.UserId,
+           class.ClassId,
+           CASE WHEN class.StartDate > DATEADD(DAY, -60, @Today) THEN class.StartDate ELSE DATEADD(DAY, -60, @Today) END,
+           N'Active'
+    FROM dbo.Classes AS class
+    JOIN @ClassStudentSlots AS slot
+      ON slot.SlotNumber >
+      (
+          SELECT COUNT_BIG(*)
+          FROM dbo.Enrollments enrollment
+          WHERE enrollment.ClassId = class.ClassId
+            AND enrollment.Status = N'Active'
+      )
+    JOIN dbo.Users AS student
+      ON student.Email = CONCAT(N'student_class_', class.ClassId, N'_', slot.SlotNumber, N'@tutorflow.local')
+    WHERE class.Status = N'Active'
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.Enrollments currentEnrollment
+          WHERE currentEnrollment.StudentId = student.UserId
+            AND currentEnrollment.ClassId = class.ClassId
+      );
 
     /* Add a completed session during the current month if the class lacks one. */
     INSERT INTO dbo.ClassSessions (ClassId, SessionDate, RoomId, ShiftId, LecturerId, Status)
@@ -379,31 +472,27 @@ BEGIN TRY
           AND currentSession.SessionDate > @Today
     );
 
-    /* Present attendance on completed sample sessions makes tuition visible in the current month. */
+    /* Present attendance for all enrolled active-class students makes tuition visible in the current month. */
     INSERT INTO dbo.Attendance (SessionId, StudentId, Status, Note, RecordedBy)
     SELECT session.SessionId,
-           student.UserId,
+           enrollment.StudentId,
            N'Present',
            N'Dữ liệu điểm danh mẫu',
            session.LecturerId
-    FROM @DemoRows AS demo
-    JOIN dbo.Users AS student
-      ON student.Email = CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
-    JOIN dbo.Classes AS class
-      ON class.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2))
+    FROM dbo.Classes AS class
     JOIN dbo.ClassSessions AS session
       ON session.ClassId = class.ClassId
      AND session.Status = N'Completed'
      AND session.SessionDate BETWEEN @MonthStart AND @Today
     JOIN dbo.Enrollments AS enrollment
-      ON enrollment.StudentId = student.UserId
-     AND enrollment.ClassId = class.ClassId
+      ON enrollment.ClassId = class.ClassId
+     AND enrollment.Status = N'Active'
      AND enrollment.EnrollDate <= session.SessionDate
     WHERE NOT EXISTS
     (
         SELECT 1 FROM dbo.Attendance currentAttendance
         WHERE currentAttendance.SessionId = session.SessionId
-          AND currentAttendance.StudentId = student.UserId
+          AND currentAttendance.StudentId = enrollment.StudentId
     );
 
     SELECT @TuitionPerSession = TRY_CONVERT(DECIMAL(12, 0), SettingValue)
@@ -411,42 +500,39 @@ BEGIN TRY
     WHERE SettingKey = N'TUITION_PER_SESSION';
     SET @TuitionPerSession = COALESCE(@TuitionPerSession, 200000);
 
-    /* One tuition record per sample student/class for the current month. */
+    /* One current-month tuition record per active enrollment. */
     INSERT INTO dbo.Tuitions
         (StudentId, ClassId, PeriodFrom, PeriodTo, SessionsAttended, AmountPerSession, PaymentStatus, DueDate)
     SELECT
-        student.UserId,
+        enrollment.StudentId,
         class.ClassId,
         @MonthStart,
         @Today,
         attendance.PresentCount,
         @TuitionPerSession,
-        CASE WHEN demo.RowNumber % 2 = 1 THEN N'Paid' ELSE N'Unpaid' END,
+        CASE WHEN enrollment.StudentId % 2 = 1 THEN N'Paid' ELSE N'Unpaid' END,
         DATEADD(DAY, 7, EOMONTH(@Today))
-    FROM @DemoRows AS demo
-    JOIN dbo.Users AS student
-      ON student.Email = CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
-    JOIN dbo.Classes AS class
-      ON class.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2))
+    FROM dbo.Classes AS class
     JOIN dbo.Enrollments AS enrollment
-      ON enrollment.StudentId = student.UserId
-     AND enrollment.ClassId = class.ClassId
+      ON enrollment.ClassId = class.ClassId
+     AND enrollment.Status = N'Active'
     OUTER APPLY
     (
         SELECT COUNT(*) AS PresentCount
         FROM dbo.Attendance attendanceRow
         JOIN dbo.ClassSessions completedSession
           ON completedSession.SessionId = attendanceRow.SessionId
-        WHERE attendanceRow.StudentId = student.UserId
+        WHERE attendanceRow.StudentId = enrollment.StudentId
           AND completedSession.ClassId = class.ClassId
           AND completedSession.Status = N'Completed'
           AND completedSession.SessionDate BETWEEN @MonthStart AND @Today
           AND attendanceRow.Status = N'Present'
     ) AS attendance
-    WHERE NOT EXISTS
+    WHERE class.Status = N'Active'
+      AND NOT EXISTS
     (
         SELECT 1 FROM dbo.Tuitions currentTuition
-        WHERE currentTuition.StudentId = student.UserId
+        WHERE currentTuition.StudentId = enrollment.StudentId
           AND currentTuition.ClassId = class.ClassId
           AND currentTuition.PeriodFrom = @MonthStart
           AND currentTuition.PeriodTo = @Today
@@ -458,20 +544,16 @@ BEGIN TRY
         tuition.TuitionId,
         CASE WHEN tuition.PaymentStatus = N'Paid' THEN tuition.TotalAmount ELSE tuition.TotalAmount / 2 END,
         DATEADD(DAY, -1, CONVERT(DATETIME, @Today)),
-        CASE WHEN demo.RowNumber % 2 = 1 THEN N'Chuyển khoản' ELSE N'Tiền mặt' END,
+        CASE WHEN tuition.StudentId % 2 = 1 THEN N'Chuyển khoản' ELSE N'Tiền mặt' END,
         @GrandManagerId,
         CONCAT(N'TF-SEED-', RIGHT(CONCAT(N'0000', tuition.TuitionId), 4))
-    FROM @DemoRows AS demo
-    JOIN dbo.Users AS student
-      ON student.Email = CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
-    JOIN dbo.Classes AS class
-      ON class.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2))
+    FROM dbo.Classes AS class
     JOIN dbo.Tuitions AS tuition
-      ON tuition.StudentId = student.UserId
-     AND tuition.ClassId = class.ClassId
+      ON tuition.ClassId = class.ClassId
      AND tuition.PeriodFrom = @MonthStart
      AND tuition.PeriodTo = @Today
-    WHERE NOT EXISTS (SELECT 1 FROM dbo.Payments existingPayment WHERE existingPayment.TuitionId = tuition.TuitionId);
+    WHERE class.Status = N'Active'
+      AND NOT EXISTS (SELECT 1 FROM dbo.Payments existingPayment WHERE existingPayment.TuitionId = tuition.TuitionId);
 
     /* Room/shift requests with Pending, Approved, and Rejected examples. */
     INSERT INTO dbo.RoomChangeRequests
@@ -531,6 +613,23 @@ BEGIN TRY
         WHERE existingRequest.ClassId = class.ClassId
     );
 
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.Classes AS sampleClass
+        WHERE
+        (
+            SELECT COUNT_BIG(*)
+            FROM dbo.Enrollments enrollment
+            WHERE enrollment.ClassId = sampleClass.ClassId
+              AND enrollment.Status = N'Active'
+        ) < 15
+          AND sampleClass.Status = N'Active'
+    )
+    BEGIN
+        THROW 51004, N'Mỗi lớp đang hoạt động phải có ít nhất 15 học viên đang ghi danh.', 1;
+    END;
+
     /* Enforce the lecturer's minimum of 20 rows in each business table. */
     IF (SELECT COUNT_BIG(*) FROM dbo.Users) < 20
        OR (SELECT COUNT_BIG(*) FROM dbo.Facilities) < 20
@@ -564,3 +663,12 @@ UNION ALL SELECT N'Tuitions', COUNT_BIG(*) FROM dbo.Tuitions
 UNION ALL SELECT N'Payments', COUNT_BIG(*) FROM dbo.Payments
 UNION ALL SELECT N'RoomChangeRequests', COUNT_BIG(*) FROM dbo.RoomChangeRequests
 ORDER BY TableName;
+
+SELECT sampleClass.ClassName, COUNT_BIG(enrollment.EnrollmentId) AS ActiveStudentCount
+FROM dbo.Classes AS sampleClass
+LEFT JOIN dbo.Enrollments AS enrollment
+  ON enrollment.ClassId = sampleClass.ClassId
+ AND enrollment.Status = N'Active'
+WHERE sampleClass.Status = N'Active'
+GROUP BY sampleClass.ClassName
+ORDER BY sampleClass.ClassName;

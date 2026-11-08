@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Dtos.Api;
 using BackEnd.Services.Common;
+using TuitionEntity = BackEnd.Data.Entities.Tuition;
 
 namespace BackEnd.Services.Dashboard;
 
@@ -14,10 +15,12 @@ public interface IAdminDashboardService
 public sealed class AdminDashboardService : IAdminDashboardService
 {
     private readonly TutorFlowDbContext _db;
+    private readonly ILogger<AdminDashboardService> _logger;
 
-    public AdminDashboardService(TutorFlowDbContext db)
+    public AdminDashboardService(TutorFlowDbContext db, ILogger<AdminDashboardService> logger)
     {
         _db = db;
+        _logger = logger;
     }
 
     public async Task<Result<AdminDashboardDto>> GetAdminStatsAsync(DateOnly targetDate)
@@ -42,12 +45,14 @@ public sealed class AdminDashboardService : IAdminDashboardService
                 ActiveLecturers = stats.ActiveLecturers,
                 ActiveStudents = stats.ActiveStudents,
                 PendingChangeRequests = stats.PendingChangeRequests,
-                TotalUnpaidTuition = stats.TotalUnpaidTuition,
+                TotalUnpaidTuition = await GetUnpaidTuitionBalanceAsync(
+                    _db.Tuitions.Where(tuition => tuition.PaymentStatus == "Unpaid")),
                 RoomShiftStatuses = roomShiftStatuses
             });
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to load the system dashboard for {TargetDate}.", targetDate);
             var mapped = SqlExceptionMapper.Map(ex);
             return Result<AdminDashboardDto>.Fail(mapped?.Error ?? ScheduleError.ValidationError,
                 mapped?.Message ?? "Không thể tải thống kê lúc này.");
@@ -103,10 +108,9 @@ public sealed class AdminDashboardService : IAdminDashboardService
                     .CountAsync(request => request.Status == "Pending"
                         && ((request.RequestedRoomId.HasValue && request.RequestedRoom!.FacilityId == facilityId)
                             || (!request.RequestedRoomId.HasValue && request.CurrentRoom.FacilityId == facilityId))),
-                TotalUnpaidTuition = await _db.Tuitions
-                    .Where(tuition => tuition.PaymentStatus == "Unpaid" && tuition.Class.FacilityId == facilityId)
-                    .Select(tuition => tuition.TotalAmount ?? 0m)
-                    .SumAsync(),
+                TotalUnpaidTuition = await GetUnpaidTuitionBalanceAsync(
+                    _db.Tuitions.Where(tuition => tuition.PaymentStatus == "Unpaid"
+                        && tuition.Class.FacilityId == facilityId)),
                 RoomShiftStatuses = roomShiftStatuses
             };
 
@@ -114,6 +118,8 @@ public sealed class AdminDashboardService : IAdminDashboardService
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to load the facility dashboard for facility {FacilityId} and {TargetDate}.",
+                facilityId, targetDate);
             var mapped = SqlExceptionMapper.Map(ex);
             return Result<AdminDashboardDto>.Fail(mapped?.Error ?? ScheduleError.ValidationError,
                 mapped?.Message ?? "Không thể tải thống kê cơ sở lúc này.");
@@ -125,4 +131,18 @@ public sealed class AdminDashboardService : IAdminDashboardService
             .FromSqlInterpolated($"SELECT * FROM dbo.fn_RoomShiftStatus({targetDate})")
             .AsNoTracking()
             .ToListAsync();
+
+    private async Task<decimal> GetUnpaidTuitionBalanceAsync(IQueryable<TuitionEntity> unpaidTuitions)
+    {
+        // Keep the two aggregates separate; SQL Server rejects SUM(expression containing a subquery).
+        var totalAmount = await unpaidTuitions
+            .SumAsync(tuition => tuition.TotalAmount ?? 0m);
+
+        var unpaidTuitionIds = unpaidTuitions.Select(tuition => tuition.TuitionId);
+        var paidAmount = await _db.Payments
+            .Where(payment => unpaidTuitionIds.Contains(payment.TuitionId))
+            .SumAsync(payment => (decimal?)payment.AmountPaid) ?? 0m;
+
+        return totalAmount - paidAmount;
+    }
 }

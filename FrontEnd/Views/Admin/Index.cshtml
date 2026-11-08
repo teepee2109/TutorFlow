@@ -24,11 +24,13 @@
     </div>
 </form>
 
-@if (ViewBag.ErrorMessage != null)
+@if (ViewBag.ErrorMessage is string errorMessage)
 {
-    <div class="alert alert-danger" role="alert">@ViewBag.ErrorMessage</div>
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
 }
 
+@if (ViewBag.DashboardLoaded == true)
+{
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <section class="tf-stat-card primary" data-icon="⌂" aria-label="Cơ sở vật chất">
@@ -54,6 +56,7 @@
 </div>
 
 <partial name="_RoomShiftStatusTable" model="Model" />
+}
 
 <section class="card mt-4">
     <div class="card-header">Lối tắt quản trị</div>

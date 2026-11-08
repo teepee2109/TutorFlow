@@ -28,6 +28,51 @@
     <div class="alert alert-warning">Không tải được danh sách lựa chọn: @optionsError</div>
 }
 
+<form method="get" asp-action="Index" class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="classSearch">Tìm lớp</label>
+                <input id="classSearch" name="search" value="@Model.Search" class="form-control" placeholder="Tên lớp, môn học hoặc giảng viên" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="classStatus">Trạng thái</label>
+                <select id="classStatus" name="status" class="form-select">
+                    <option value="All" selected="@(Model.Status == "All")">Tất cả</option>
+                    <option value="Active" selected="@(Model.Status == "Active")">Đang mở</option>
+                    <option value="Closed" selected="@(Model.Status == "Closed")">Đã đóng</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="classSubject">Môn học</label>
+                <select id="classSubject" name="subjectId" class="form-select">
+                    <option value="">Tất cả môn</option>
+                    @foreach (var subject in Model.Options.Subjects)
+                    {
+                        <option value="@subject.Id" selected="@(Model.SubjectId == subject.Id)">@subject.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="classLecturer">Giảng viên</label>
+                <select id="classLecturer" name="lecturerId" class="form-select">
+                    <option value="">Tất cả giảng viên</option>
+                    @foreach (var lecturer in Model.Options.Lecturers)
+                    {
+                        <option value="@lecturer.Id" selected="@(Model.LecturerId == lecturer.Id)">@lecturer.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">Lọc</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Xóa</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="small text-muted mb-2">Tìm thấy @Model.Classes.Count lớp.</div>
+
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 tf-paginated-table">

@@ -81,6 +81,7 @@ public class ClassListItemViewModel
 public sealed class ClassDetailViewModel : ClassListItemViewModel
 {
     public List<ClassSessionViewModel> Sessions { get; set; } = new();
+    public ClassOptionsViewModel Options { get; set; } = new();
 }
 
 public sealed class ClassSessionViewModel
@@ -117,4 +118,8 @@ public sealed class ClassesIndexViewModel
 {
     public List<ClassListItemViewModel> Classes { get; set; } = new();
     public ClassOptionsViewModel Options { get; set; } = new();
+    public string Search { get; set; } = string.Empty;
+    public string Status { get; set; } = "All";
+    public int? SubjectId { get; set; }
+    public int? LecturerId { get; set; }
 }

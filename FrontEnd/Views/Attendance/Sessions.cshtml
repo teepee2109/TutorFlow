@@ -1,0 +1,108 @@
+@model FrontEnd.Models.AttendanceSessionsPageViewModel
+@{
+    var isGrandManager = User.IsInRole("GrandManager");
+    ViewData["Title"] = "Theo dõi điểm danh";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">📋 Theo dõi điểm danh</h2>
+        <p class="text-muted mb-0">@(isGrandManager ? "Lịch sử điểm danh toàn hệ thống." : "Lịch sử điểm danh tại cơ sở bạn phụ trách.")</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+@if (ViewBag.ErrorMessage is string loadError)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+
+<form method="get" asp-action="Index" class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label" for="attendanceFrom">Từ ngày</label>
+                <input id="attendanceFrom" name="from" type="date" value="@Model.From.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label" for="attendanceTo">Đến ngày</label>
+                <input id="attendanceTo" name="to" type="date" value="@Model.To.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-sm-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Lọc</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">30 ngày</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="small text-muted mb-2">@Model.Sessions.Count buổi học trong khoảng @Model.From.ToString("dd/MM/yyyy") – @Model.To.ToString("dd/MM/yyyy").</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 tf-paginated-table">
+            <thead class="table-light">
+                <tr>
+                    <th>Ngày / ca</th>
+                    <th>Lớp học</th>
+                    @if (isGrandManager) { <th>Cơ sở</th> }
+                    <th>Phòng</th>
+                    <th>Giảng viên</th>
+                    <th>Điểm danh</th>
+                    <th>Buổi học</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Sessions.Count == 0)
+                {
+                    <tr><td colspan="@(isGrandManager ? 8 : 7)" class="text-center text-muted py-5">Không có buổi học trong khoảng ngày đã chọn.</td></tr>
+                }
+                @foreach (var session in Model.Sessions)
+                {
+                    <tr>
+                        <td class="text-nowrap">@session.SessionDate.ToString("dd/MM/yyyy")<div class="small text-muted">@session.ShiftName</div></td>
+                        <td class="fw-semibold">@session.ClassName</td>
+                        @if (isGrandManager) { <td>@session.FacilityName</td> }
+                        <td>Phòng @session.RoomNumber</td>
+                        <td>@session.LecturerName</td>
+                        <td>
+                            @if (session.EligibleStudentCount == 0)
+                            {
+                                <span class="text-muted">Không có HV</span>
+                            }
+                            else if (session.RecordedAttendanceCount == session.EligibleStudentCount)
+                            {
+                                <span class="badge text-bg-success">@session.RecordedAttendanceCount / @session.EligibleStudentCount</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-warning">@session.RecordedAttendanceCount / @session.EligibleStudentCount</span>
+                            }
+                        </td>
+                        <td>
+                            @if (session.Status == "Completed")
+                            {
+                                <span class="badge text-bg-success">Đã hoàn tất</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-primary">Chưa hoàn tất</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Index" asp-route-sessionId="@session.SessionId" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

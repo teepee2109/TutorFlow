@@ -31,7 +31,19 @@ GO
 USE TutorFlow;
 GO
 
+-- This file is UTF-8. When using sqlcmd, specify -f 65001 so Vietnamese literals stay intact.
+IF UNICODE(SUBSTRING(N'Lớp', 2, 1)) <> 7899
+BEGIN
+    THROW 51005, 'TutorFlow.sql must be read as UTF-8. Run sqlcmd with -f 65001.', 1;
+END;
+GO
+
 SET ANSI_NULLS ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET NUMERIC_ROUNDABORT OFF;
 GO
 SET QUOTED_IDENTIFIER ON;
 GO
@@ -485,12 +497,15 @@ BEGIN
     IF EXISTS (
         SELECT 1
         FROM inserted i
-        JOIN ClassSessions cs1 ON cs1.ClassId = i.ClassId AND cs1.Status <> 'Cancelled'
+        JOIN ClassSessions cs1 ON cs1.ClassId = i.ClassId
+                              AND cs1.Status <> 'Cancelled'
+                              AND cs1.SessionDate >= i.EnrollDate
         JOIN Enrollments e2    ON e2.StudentId = i.StudentId AND e2.ClassId <> i.ClassId AND e2.Status = 'Active'
         JOIN ClassSessions cs2 ON cs2.ClassId = e2.ClassId
                                AND cs2.SessionDate = cs1.SessionDate
                                AND cs2.ShiftId = cs1.ShiftId
                                AND cs2.Status <> 'Cancelled'
+                               AND cs2.SessionDate >= e2.EnrollDate
         WHERE i.Status = 'Active'
     )
     BEGIN
@@ -575,7 +590,15 @@ SELECT
     (SELECT COUNT(DISTINCT u.UserId) FROM Users u JOIN Roles r ON r.RoleId = u.RoleId WHERE r.RoleName = 'Lecturer' AND u.IsDeleted = 0 AND u.IsActive = 1) AS ActiveLecturers,
     (SELECT COUNT(DISTINCT u.UserId) FROM Users u JOIN Roles r ON r.RoleId = u.RoleId WHERE r.RoleName = 'Student'  AND u.IsDeleted = 0 AND u.IsActive = 1) AS ActiveStudents,
     (SELECT COUNT(*) FROM RoomChangeRequests WHERE Status = 'Pending')          AS PendingChangeRequests,
-    ISNULL((SELECT SUM(TotalAmount) FROM Tuitions WHERE PaymentStatus = 'Unpaid'), 0) AS TotalUnpaidTuition;
+    ISNULL((
+        SELECT SUM(ISNULL(t.TotalAmount, 0) - ISNULL((
+            SELECT SUM(p.AmountPaid)
+            FROM Payments p
+            WHERE p.TuitionId = t.TuitionId
+        ), 0))
+        FROM Tuitions t
+        WHERE t.PaymentStatus = 'Unpaid'
+    ), 0) AS TotalUnpaidTuition;
 GO
 
 -- ── 11.2 Function Lưới trạng thái Phòng x Ca (F6) ──
@@ -753,6 +776,30 @@ BEGIN
     SET @i += 1;
 END
 
+-- Thêm 14 học viên riêng cho từng lớp mẫu để mỗi lớp có tổng cộng 15 học viên.
+DECLARE @ClassNumber INT = 1;
+DECLARE @StudentSlot INT;
+WHILE @ClassNumber <= 20
+BEGIN
+    SET @StudentSlot = 2;
+    WHILE @StudentSlot <= 15
+    BEGIN
+        INSERT INTO Users (FullName, Email, PasswordHash, PhoneNumber, RoleId, IsActive, IsDeleted)
+        VALUES
+        (
+            CONCAT(N'Học viên lớp ', RIGHT(CONCAT(N'00', @ClassNumber), 2), N' - ', RIGHT(CONCAT(N'00', @StudentSlot), 2)),
+            CONCAT(N'student_demo_', RIGHT(CONCAT(N'00', @ClassNumber), 2), N'_', RIGHT(CONCAT(N'00', @StudentSlot), 2), N'@tutorflow.local'),
+            @DemoPasswordHash,
+            CONCAT(N'0985', RIGHT(CONCAT(N'00', @ClassNumber), 2), RIGHT(CONCAT(N'00', @StudentSlot), 2)),
+            @StudentRoleId,
+            1,
+            0
+        );
+        SET @StudentSlot += 1;
+    END
+    SET @ClassNumber += 1;
+END
+
 SET @i = 1;
 WHILE @i <= 10
 BEGIN
@@ -851,7 +898,7 @@ FROM @DemoRows AS demo
 JOIN Classes AS c
     ON c.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2));
 
--- 12.10 Enrollments: 20 học viên, mỗi học viên tham gia một lớp.
+-- 12.10 Enrollments: mỗi lớp mẫu có 15 học viên riêng.
 INSERT INTO Enrollments (StudentId, ClassId, EnrollDate, Status)
 SELECT
     st.UserId,
@@ -859,8 +906,14 @@ SELECT
     DATEADD(DAY, -30, @Today),
     N'Active'
 FROM @DemoRows AS demo
+JOIN (VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15)) AS slot(SlotNumber)
+    ON 1 = 1
 JOIN Users AS st
-    ON st.Email = CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
+    ON st.Email = CASE
+        WHEN slot.SlotNumber = 1
+            THEN CONCAT(N'student', demo.RowNumber, N'@tutorflow.local')
+        ELSE CONCAT(N'student_demo_', RIGHT(CONCAT(N'00', demo.RowNumber), 2), N'_', RIGHT(CONCAT(N'00', slot.SlotNumber), 2), N'@tutorflow.local')
+    END
 JOIN Classes AS c
     ON c.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2));
 
@@ -875,7 +928,7 @@ SELECT
 FROM Enrollments AS enrollment
 JOIN ClassSessions AS cs ON cs.ClassId = enrollment.ClassId;
 
--- 12.12 Tuitions: 20 kỳ học phí; một nửa đã thanh toán, một nửa còn nợ.
+-- 12.12 Tuitions: 300 kỳ học phí mẫu; mỗi lớp có 15 học viên.
 INSERT INTO Tuitions
     (StudentId, ClassId, PeriodFrom, PeriodTo, SessionsAttended, AmountPerSession, PaymentStatus, DueDate)
 SELECT
@@ -890,7 +943,7 @@ SELECT
 FROM Enrollments AS enrollment
 JOIN Classes AS c ON c.ClassId = enrollment.ClassId;
 
--- 12.13 Payments: 20 giao dịch; khoản chưa thanh toán có giao dịch trả một phần.
+-- 12.13 Payments: mỗi kỳ học phí mẫu có giao dịch tương ứng.
 INSERT INTO Payments (TuitionId, AmountPaid, PaymentDate, PaymentMethod, ReceivedBy, ReceiptNumber)
 SELECT
     tuition.TuitionId,
@@ -949,6 +1002,24 @@ BEGIN
     THROW 51000, N'Dữ liệu mẫu chưa đạt tối thiểu 20 bản ghi cho mỗi bảng nghiệp vụ.', 1;
 END
 
+IF EXISTS
+(
+    SELECT 1
+    FROM @DemoRows AS demo
+    JOIN Classes AS sampleClass
+      ON sampleClass.ClassName = CONCAT(N'Lớp mẫu ', RIGHT(CONCAT(N'00', demo.RowNumber), 2))
+    WHERE
+    (
+        SELECT COUNT_BIG(*)
+        FROM Enrollments enrollment
+        WHERE enrollment.ClassId = sampleClass.ClassId
+          AND enrollment.Status = N'Active'
+    ) < 15
+)
+BEGIN
+    THROW 51004, N'Mỗi lớp mẫu phải có ít nhất 15 học viên đang ghi danh.', 1;
+END
+
 SELECT N'Users' AS TableName, COUNT_BIG(*) AS RecordCount FROM Users
 UNION ALL SELECT N'Facilities', COUNT_BIG(*) FROM Facilities
 UNION ALL SELECT N'Rooms', COUNT_BIG(*) FROM Rooms
@@ -959,4 +1030,13 @@ UNION ALL SELECT N'Attendance', COUNT_BIG(*) FROM Attendance
 UNION ALL SELECT N'Tuitions', COUNT_BIG(*) FROM Tuitions
 UNION ALL SELECT N'Payments', COUNT_BIG(*) FROM Payments
 UNION ALL SELECT N'RoomChangeRequests', COUNT_BIG(*) FROM RoomChangeRequests;
+
+SELECT sampleClass.ClassName, COUNT_BIG(enrollment.EnrollmentId) AS ActiveStudentCount
+FROM Classes AS sampleClass
+LEFT JOIN Enrollments AS enrollment
+    ON enrollment.ClassId = sampleClass.ClassId
+   AND enrollment.Status = N'Active'
+WHERE sampleClass.ClassName LIKE N'Lớp mẫu [0-9][0-9]'
+GROUP BY sampleClass.ClassName
+ORDER BY sampleClass.ClassName;
 GO

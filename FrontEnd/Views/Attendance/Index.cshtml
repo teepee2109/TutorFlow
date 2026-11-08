@@ -5,10 +5,17 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h2 class="fw-bold mb-1">✅ Điểm danh · @Model.ClassName</h2>
+        <h2 class="fw-bold mb-1">@(User.IsInRole("Lecturer") ? "✅ Điểm danh" : "📋 Xem điểm danh") · @Model.ClassName</h2>
         <p class="text-muted mb-0">@Model.SessionDate.ToString("dd/MM/yyyy") · @Model.ShiftName · Phòng @Model.RoomNumber</p>
     </div>
-    <a asp-controller="Schedule" asp-action="Index" class="btn btn-outline-secondary">Quay lại lịch dạy</a>
+    @if (User.IsInRole("Lecturer"))
+    {
+        <a asp-controller="Schedule" asp-action="Index" class="btn btn-outline-secondary">Quay lại lịch dạy</a>
+    }
+    else
+    {
+        <a asp-controller="Attendance" asp-action="Index" class="btn btn-outline-secondary">Quay lại danh sách</a>
+    }
 </div>
 
 @if (TempData["SuccessMessage"] is string success)
@@ -18,6 +25,10 @@
 @if (ViewBag.ErrorMessage is string error)
 {
     <div class="alert alert-danger">@error</div>
+}
+@if (TempData["ErrorMessage"] is string actionError)
+{
+    <div class="alert alert-danger">@actionError</div>
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -32,7 +43,7 @@
         }
         <span class="text-muted ms-2">@Model.Students.Count học viên đủ điều kiện điểm danh</span>
     </div>
-    @if (Model.Status != "Completed")
+    @if (User.IsInRole("Lecturer") && Model.Status != "Completed")
     {
         <form method="post" asp-action="Complete" onsubmit="return confirm('Đánh dấu buổi học này là đã hoàn tất?')">
             @Html.AntiForgeryToken()
@@ -42,9 +53,17 @@
     }
 </div>
 
+@if (User.IsInRole("Lecturer") && Model.Status != "Completed" && Model.Students.Count > 0)
+{
+    <div class="alert alert-info py-2 small">Cần lưu điểm danh cho toàn bộ học viên đủ điều kiện trước khi hoàn tất buổi học.</div>
+}
+
 <form method="post" asp-action="Save">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="SessionId" value="@Model.SessionId" />
+    @if (User.IsInRole("Lecturer"))
+    {
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="SessionId" value="@Model.SessionId" />
+    }
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 tf-paginated-table">
@@ -58,26 +77,61 @@
                     {
                         var student = Model.Students[index];
                         <tr>
-                            <td>@(index + 1)<input type="hidden" name="Students[@index].StudentId" value="@student.StudentId" /></td>
+                            <td>
+                                @(index + 1)
+                                @if (User.IsInRole("Lecturer"))
+                                {
+                                    <input type="hidden" name="Students[@index].StudentId" value="@student.StudentId" />
+                                }
+                            </td>
                             <td class="fw-semibold">@student.FullName</td>
                             <td>@student.Email</td>
                             <td>
-                                <select name="Students[@index].AttendanceStatus" class="form-select form-select-sm" required>
-                                    <option value="">-- Chọn --</option>
-                                    <option value="Present" selected="@(student.AttendanceStatus == "Present" ? "selected" : null)">Có mặt</option>
-                                    <option value="ExcusedAbsent" selected="@(student.AttendanceStatus == "ExcusedAbsent" ? "selected" : null)">Vắng có phép</option>
-                                    <option value="UnexcusedAbsent" selected="@(student.AttendanceStatus == "UnexcusedAbsent" ? "selected" : null)">Vắng không phép</option>
-                                </select>
+                                @if (User.IsInRole("Lecturer"))
+                                {
+                                    <select name="Students[@index].AttendanceStatus" class="form-select form-select-sm" required>
+                                        <option value="">-- Chọn --</option>
+                                        <option value="Present" selected="@(student.AttendanceStatus == "Present" ? "selected" : null)">Có mặt</option>
+                                        <option value="ExcusedAbsent" selected="@(student.AttendanceStatus == "ExcusedAbsent" ? "selected" : null)">Vắng có phép</option>
+                                        <option value="UnexcusedAbsent" selected="@(student.AttendanceStatus == "UnexcusedAbsent" ? "selected" : null)">Vắng không phép</option>
+                                    </select>
+                                }
+                                else
+                                {
+                                    @switch (student.AttendanceStatus)
+                                    {
+                                        case "Present": <span class="badge text-bg-success">Có mặt</span> break;
+                                        case "ExcusedAbsent": <span class="badge text-bg-warning">Vắng có phép</span> break;
+                                        case "UnexcusedAbsent": <span class="badge text-bg-danger">Vắng không phép</span> break;
+                                        default: <span class="text-muted">Chưa ghi nhận</span> break;
+                                    }
+                                }
                             </td>
-                            <td><input name="Students[@index].Note" value="@student.Note" maxlength="255" class="form-control form-control-sm" /></td>
+                            <td>
+                                @if (User.IsInRole("Lecturer"))
+                                {
+                                    <input name="Students[@index].Note" value="@student.Note" maxlength="255" class="form-control form-control-sm" />
+                                }
+                                else
+                                {
+                                    @(string.IsNullOrWhiteSpace(student.Note) ? "—" : student.Note)
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
         <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-            <span class="small text-muted">Lưu sẽ thêm mới hoặc cập nhật các điểm danh đã có.</span>
-            <button type="submit" class="btn btn-primary" @(Model.Students.Count == 0 ? "disabled" : null)>Lưu điểm danh</button>
+            @if (User.IsInRole("Lecturer"))
+            {
+                <span class="small text-muted">Lưu sẽ thêm mới hoặc cập nhật các điểm danh đã có.</span>
+                <button type="submit" class="btn btn-primary" @(Model.Students.Count == 0 ? "disabled" : null)>Lưu điểm danh</button>
+            }
+            else
+            {
+                <span class="small text-muted">Chế độ chỉ xem. Chỉ giảng viên phụ trách mới được sửa điểm danh.</span>
+            }
         </div>
     </div>
 </form>

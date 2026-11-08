@@ -16,9 +16,9 @@ public sealed class ClassesController : Controller
         _apiClient = apiClient;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? search, string? status, int? subjectId, int? lecturerId)
     {
-        var classes = await _apiClient.GetClassesAsync();
+        var classes = await _apiClient.GetClassesAsync(search, status, subjectId, lecturerId);
         var options = await _apiClient.GetClassOptionsAsync();
         if (!classes.Success) ViewBag.ErrorMessage = classes.Message;
         if (!options.Success) ViewBag.OptionsErrorMessage = options.Message;
@@ -27,7 +27,11 @@ public sealed class ClassesController : Controller
         return View(new ClassesIndexViewModel
         {
             Classes = classes.Value ?? new List<ClassListItemViewModel>(),
-            Options = options.Value ?? new ClassOptionsViewModel()
+            Options = options.Value ?? new ClassOptionsViewModel(),
+            Search = search ?? string.Empty,
+            Status = status is "Active" or "Closed" ? status : "All",
+            SubjectId = subjectId,
+            LecturerId = lecturerId
         });
     }
 
@@ -138,6 +142,16 @@ public sealed class ClassesController : Controller
             TempData["ErrorMessage"] = result.Message;
             return RedirectToAction(nameof(Index));
         }
+
+        var options = await _apiClient.GetClassOptionsAsync();
+        if (options.Success && options.Value != null)
+        {
+            result.Value.Options = options.Value;
+        }
+        else
+        {
+            ViewBag.OptionsErrorMessage = options.Message;
+        }
         return View(result.Value);
     }
 
@@ -155,6 +169,30 @@ public sealed class ClassesController : Controller
     {
         SetMessage(await _apiClient.CloseClassAsync(classId));
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reschedule(int classId, int sessionId, SessionRescheduleViewModel model)
+    {
+        SetMessage(await _apiClient.RescheduleSessionAsync(sessionId, model));
+        return RedirectToAction(nameof(Details), new { id = classId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelSession(int classId, int sessionId)
+    {
+        SetMessage(await _apiClient.CancelSessionAsync(sessionId));
+        return RedirectToAction(nameof(Details), new { id = classId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignSubstitute(int classId, int sessionId, int lecturerId)
+    {
+        SetMessage(await _apiClient.AssignSessionSubstituteAsync(sessionId, lecturerId));
+        return RedirectToAction(nameof(Details), new { id = classId });
     }
 
     private async Task LoadOptionsAsync(ClassWriteViewModel model)

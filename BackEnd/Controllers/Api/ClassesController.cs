@@ -24,9 +24,13 @@ public sealed class ClassesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetClasses()
+    public async Task<IActionResult> GetClasses(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] int? subjectId,
+        [FromQuery] int? lecturerId)
     {
-        var result = await _classService.GetClassesAsync();
+        var result = await _classService.GetClassesAsync(search, status, subjectId, lecturerId);
         return result.Success && result.Value != null
             ? Ok(ApiResponse<List<ClassListItemDto>>.Ok(result.Value))
             : StatusCode(StatusFor(result.Error), ApiResponse<List<ClassListItemDto>>.Fail(result.Message));

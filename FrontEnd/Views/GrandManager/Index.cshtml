@@ -1,3 +1,4 @@
+@model FrontEnd.Models.AdminDashboardViewModel
 @inject ICurrentUser CurrentUser
 @{
     ViewData["Title"] = "Dashboard quản lý tổng";
@@ -6,42 +7,79 @@
 <div class="tf-page-heading">
     <div>
         <h1>Xin chào, @CurrentUser.FullName</h1>
-        <p>Quản lý hoạt động đào tạo, ghi danh và học phí của TutorFlow.</p>
+        <p>Tổng quan lớp học, nhân sự, phòng học và học phí trên toàn hệ thống.</p>
     </div>
+    <form method="get" asp-controller="GrandManager" asp-action="Index" class="d-flex align-items-end gap-2">
+        <div>
+            <label class="form-label mb-1" for="dashboardDate">Ngày xem phòng</label>
+            <input id="dashboardDate" type="date" name="date" value="@Model.TargetDate.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary">Cập nhật</button>
+    </form>
 </div>
 
+@if (ViewBag.ErrorMessage is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+@if (ViewBag.DashboardLoaded == true)
+{
 <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        <article class="tf-action-card">
-            <span class="tf-action-icon">▣</span><h2>Lớp học</h2>
-            <p>Tạo lớp, xem danh sách và quản lý các buổi học.</p>
-            <a asp-controller="Classes" asp-action="Index" class="btn btn-primary w-100">Mở danh sách lớp</a>
-        </article>
+    <div class="col-sm-6 col-xl-4">
+        <section class="tf-stat-card primary" data-icon="⌂" aria-label="Cơ sở vật chất">
+            <div class="tf-stat-label">Cơ sở vật chất</div>
+            <div class="tf-stat-value">@(Model.TotalRooms ?? 0) <small class="fs-6 fw-normal">phòng</small></div>
+            <div class="tf-stat-note">Đang mở: <strong>@(Model.OpenRooms ?? 0)</strong><span class="mx-2">·</span>Bảo trì: <strong>@(Model.ClosedRooms ?? 0)</strong></div>
+        </section>
     </div>
-    <div class="col-sm-6 col-xl-3">
-        <article class="tf-action-card">
-            <span class="tf-action-icon">＋</span><h2>Ghi danh</h2>
-            <p>Thêm học viên vào lớp và theo dõi ghi danh.</p>
-            <a asp-controller="Enrollments" asp-action="Index" class="btn btn-primary w-100">Quản lý ghi danh</a>
-        </article>
+    <div class="col-sm-6 col-xl-4">
+        <section class="tf-stat-card success" data-icon="▣" aria-label="Lớp học">
+            <div class="tf-stat-label">Lớp học đang hoạt động</div>
+            <div class="tf-stat-value">@(Model.ActiveClasses ?? 0)</div>
+            <div class="tf-stat-note">Các lớp có trạng thái đang mở</div>
+        </section>
     </div>
-    <div class="col-sm-6 col-xl-3">
-        <article class="tf-action-card">
-            <span class="tf-action-icon">♙</span><h2>Tài khoản</h2>
-            <p>Quản lý giảng viên, học viên và quản lý cơ sở.</p>
-            <a asp-controller="Users" asp-action="Index" class="btn btn-outline-primary w-100">Quản lý tài khoản</a>
-        </article>
+    <div class="col-sm-6 col-xl-4">
+        <section class="tf-stat-card primary" data-icon="♙" aria-label="Giảng viên">
+            <div class="tf-stat-label">Giảng viên đang hoạt động</div>
+            <div class="tf-stat-value">@(Model.ActiveLecturers ?? 0)</div>
+            <div class="tf-stat-note">Giảng viên đang phụ trách lớp mở</div>
+        </section>
     </div>
-    <div class="col-sm-6 col-xl-3">
-        <article class="tf-action-card">
-            <span class="tf-action-icon">₫</span><h2>Học phí</h2>
-            <p>Xem các khoản cần thu và ghi nhận thanh toán.</p>
-            <a asp-controller="Tuitions" asp-action="Index" class="btn btn-outline-primary w-100">Quản lý học phí</a>
-        </article>
+    <div class="col-sm-6 col-xl-4">
+        <section class="tf-stat-card success" data-icon="♧" aria-label="Học viên">
+            <div class="tf-stat-label">Học viên đang hoạt động</div>
+            <div class="tf-stat-value">@(Model.ActiveStudents ?? 0)</div>
+            <div class="tf-stat-note">Học viên đang ghi danh lớp mở</div>
+        </section>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <section class="tf-stat-card warning" data-icon="⇄" aria-label="Yêu cầu đổi phòng hoặc ca">
+            <div class="tf-stat-label">Yêu cầu đổi phòng / ca chờ duyệt</div>
+            <div class="tf-stat-value">@(Model.PendingChangeRequests ?? 0)</div>
+            <div class="tf-stat-note">Các yêu cầu đang chờ Facility Manager xử lý</div>
+        </section>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <section class="tf-stat-card danger" data-icon="₫" aria-label="Học phí chưa thu">
+            <div class="tf-stat-label">Học phí chưa thu</div>
+            <div class="tf-stat-value">@Model.TotalUnpaidTuition.ToString("N0") <small class="fs-6 fw-normal">VNĐ</small></div>
+            <div class="tf-stat-note">Tổng số dư của các khoản chưa thanh toán</div>
+        </section>
     </div>
 </div>
 
-<div class="alert alert-info d-flex align-items-start gap-2" role="status">
-    <span aria-hidden="true">ⓘ</span>
-    <div><strong>Tổng quan thống kê</strong><br />Số liệu tổng hợp sẽ hiển thị tại đây khi API dashboard được kết nối.</div>
-</div>
+<partial name="_RoomShiftStatusTable" model="Model" />
+}
+
+<section class="card mt-4">
+    <div class="card-header">Truy cập nhanh</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-sm-6 col-xl-4"><a asp-controller="Classes" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">▣</span><strong>Quản lý lớp học</strong><small>Tạo lớp và xem lịch buổi học</small></a></div>
+            <div class="col-sm-6 col-xl-4"><a asp-controller="Enrollments" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">＋</span><strong>Ghi danh</strong><small>Ghi danh hoặc cập nhật trạng thái học viên</small></a></div>
+            <div class="col-sm-6 col-xl-4"><a asp-controller="Tuitions" asp-action="Index" class="tf-quick-card"><span class="tf-quick-icon">₫</span><strong>Học phí</strong><small>Phát hành khoản thu và ghi nhận thanh toán</small></a></div>
+        </div>
+    </div>
+</section>

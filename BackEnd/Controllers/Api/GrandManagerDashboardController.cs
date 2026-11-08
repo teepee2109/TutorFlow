@@ -1,0 +1,36 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using BackEnd.Dtos.Api;
+using BackEnd.Services.Dashboard;
+using BackEnd.Services.Common;
+
+namespace BackEnd.Controllers.Api;
+
+[ApiController]
+[Authorize(Roles = "GrandManager")]
+[Route("api/grand-manager/dashboard")]
+public sealed class GrandManagerDashboardController : ControllerBase
+{
+    private readonly IAdminDashboardService _dashboardService;
+
+    public GrandManagerDashboardController(IAdminDashboardService dashboardService)
+    {
+        _dashboardService = dashboardService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetDashboard([FromQuery] DateOnly? date)
+    {
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.Today);
+        var result = await _dashboardService.GetAdminStatsAsync(targetDate);
+        if (!result.Success || result.Value == null)
+        {
+            var response = ApiResponse<AdminDashboardDto>.Fail(result.Message);
+            return result.Error == ScheduleError.NotFound
+                ? NotFound(response)
+                : StatusCode(StatusCodes.Status500InternalServerError, response);
+        }
+
+        return Ok(ApiResponse<AdminDashboardDto>.Ok(result.Value));
+    }
+}

@@ -70,11 +70,23 @@ public sealed class TutorFlowApiClient
     public Task<ApiResponse<AdminDashboardViewModel>> GetAdminDashboardAsync(DateOnly date) =>
         SendAsync<AdminDashboardViewModel>(HttpMethod.Get, $"api/admin/dashboard?date={date:yyyy-MM-dd}");
 
+    public Task<ApiResponse<AdminDashboardViewModel>> GetGrandManagerDashboardAsync(DateOnly date) =>
+        SendAsync<AdminDashboardViewModel>(HttpMethod.Get, $"api/grand-manager/dashboard?date={date:yyyy-MM-dd}");
+
     public Task<ApiResponse<AdminDashboardViewModel>> GetFacilityManagerDashboardAsync(DateOnly date) =>
         SendAsync<AdminDashboardViewModel>(HttpMethod.Get, $"api/facility-manager/dashboard?date={date:yyyy-MM-dd}");
 
-    public Task<ApiResponse<List<ClassListItemViewModel>>> GetClassesAsync() =>
-        SendAsync<List<ClassListItemViewModel>>(HttpMethod.Get, "api/classes");
+    public Task<ApiResponse<List<ClassListItemViewModel>>> GetClassesAsync(
+        string? search = null, string? status = null, int? subjectId = null, int? lecturerId = null)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(search)) query.Add($"search={Uri.EscapeDataString(search.Trim())}");
+        if (!string.IsNullOrWhiteSpace(status) && status != "All") query.Add($"status={Uri.EscapeDataString(status)}");
+        if (subjectId.HasValue) query.Add($"subjectId={subjectId.Value}");
+        if (lecturerId.HasValue) query.Add($"lecturerId={lecturerId.Value}");
+        var path = "api/classes" + (query.Count > 0 ? $"?{string.Join("&", query)}" : string.Empty);
+        return SendAsync<List<ClassListItemViewModel>>(HttpMethod.Get, path);
+    }
 
     public Task<ApiResponse<ClassOptionsViewModel>> GetClassOptionsAsync() =>
         SendAsync<ClassOptionsViewModel>(HttpMethod.Get, "api/classes/options");
@@ -194,6 +206,10 @@ public sealed class TutorFlowApiClient
 
     public Task<ApiResponse<AttendanceRosterViewModel>> GetAttendanceRosterAsync(int sessionId) =>
         SendAsync<AttendanceRosterViewModel>(HttpMethod.Get, $"api/attendance/{sessionId}/roster");
+
+    public Task<ApiResponse<List<AttendanceSessionListViewModel>>> GetAttendanceSessionsAsync(DateOnly from, DateOnly to) =>
+        SendAsync<List<AttendanceSessionListViewModel>>(HttpMethod.Get,
+            $"api/attendance/sessions?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
 
     public Task<ApiResponse> SaveAttendanceAsync(int sessionId, IEnumerable<AttendanceRosterStudentViewModel> students) =>
         SendAsync(HttpMethod.Put, $"api/attendance/{sessionId}", new

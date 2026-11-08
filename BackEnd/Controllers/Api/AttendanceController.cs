@@ -7,8 +7,9 @@ using BackEnd.Services.Lecturer;
 
 namespace BackEnd.Controllers.Api;
 
+/// <summary>Attendance reads for managers and lecturers, with writes restricted to lecturers.</summary>
 [ApiController]
-[Authorize(Roles = "Lecturer")]
+[Authorize(Roles = "GrandManager,FacilityManager,Lecturer")]
 [Route("api/attendance")]
 public sealed class AttendanceController : ControllerBase
 {
@@ -21,6 +22,18 @@ public sealed class AttendanceController : ControllerBase
         _currentUser = currentUser;
     }
 
+    [HttpGet("sessions")]
+    public async Task<IActionResult> GetSessions([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var end = to ?? today;
+        var start = from ?? end.AddDays(-30);
+        var result = await _attendanceService.GetSessionsAsync(start, end);
+        return result.Success && result.Value != null
+            ? Ok(ApiResponse<List<AttendanceSessionListDto>>.Ok(result.Value))
+            : StatusCode(StatusFor(result.Error), ApiResponse<List<AttendanceSessionListDto>>.Fail(result.Message));
+    }
+
     [HttpGet("{sessionId:int}/roster")]
     public async Task<IActionResult> GetRoster(int sessionId)
     {
@@ -31,6 +44,7 @@ public sealed class AttendanceController : ControllerBase
     }
 
     [HttpPut("{sessionId:int}")]
+    [Authorize(Roles = "Lecturer")]
     public async Task<IActionResult> Save(int sessionId, AttendanceSaveDto request)
     {
         if (!_currentUser.UserId.HasValue)
@@ -45,6 +59,7 @@ public sealed class AttendanceController : ControllerBase
     }
 
     [HttpPost("{sessionId:int}/complete")]
+    [Authorize(Roles = "Lecturer")]
     public async Task<IActionResult> Complete(int sessionId)
     {
         if (!_currentUser.UserId.HasValue)

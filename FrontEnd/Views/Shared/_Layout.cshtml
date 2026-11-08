@@ -53,6 +53,7 @@
                         <a class="tf-nav-link @Active("Enrollments")" asp-controller="Enrollments" asp-action="Index"><span class="tf-nav-icon">＋</span>Ghi danh</a>
                         <a class="tf-nav-link @Active("Users")" asp-controller="Users" asp-action="Index"><span class="tf-nav-icon">♙</span>Tài khoản</a>
                         <a class="tf-nav-link @Active("Rooms")" asp-controller="Rooms" asp-action="Index"><span class="tf-nav-icon">▤</span>Lưới phòng</a>
+                        <a class="tf-nav-link @Active("Attendance")" asp-controller="Attendance" asp-action="Index"><span class="tf-nav-icon">✓</span>Điểm danh</a>
                         <a class="tf-nav-link @Active("Tuitions")" asp-controller="Tuitions" asp-action="Index"><span class="tf-nav-icon">₫</span>Học phí</a>
                     }
                     @if (CurrentUser.IsInRole("FacilityManager"))

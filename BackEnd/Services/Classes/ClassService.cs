@@ -18,9 +18,25 @@ public sealed class ClassService : IClassService
         _conflictChecker = conflictChecker;
     }
 
-    public async Task<Result<List<ClassListItemDto>>> GetClassesAsync()
+    public async Task<Result<List<ClassListItemDto>>> GetClassesAsync(
+        string? search = null,
+        string? status = null,
+        int? subjectId = null,
+        int? lecturerId = null)
     {
-        var classes = await _db.Classes.AsNoTracking()
+        var query = _db.Classes.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var keyword = search.Trim();
+            query = query.Where(item => item.ClassName.Contains(keyword)
+                || item.Subject.SubjectName.Contains(keyword)
+                || item.Lecturer.FullName.Contains(keyword));
+        }
+        if (status is "Active" or "Closed") query = query.Where(item => item.Status == status);
+        if (subjectId.HasValue) query = query.Where(item => item.SubjectId == subjectId.Value);
+        if (lecturerId.HasValue) query = query.Where(item => item.LecturerId == lecturerId.Value);
+
+        var classes = await query
             .OrderByDescending(item => item.CreatedAt)
             .Select(item => new ClassListItemDto
             {

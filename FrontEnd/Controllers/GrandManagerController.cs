@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FrontEnd.Models;
+using FrontEnd.Services.Api;
 
 namespace FrontEnd.Controllers;
 
@@ -9,9 +11,27 @@ namespace FrontEnd.Controllers;
 [Authorize(Roles = "GrandManager")]
 public class GrandManagerController : Controller
 {
-    public IActionResult Index()
+    private readonly TutorFlowApiClient _apiClient;
+
+    public GrandManagerController(TutorFlowApiClient apiClient)
     {
-        ViewData["Title"] = "Grand Manager Dashboard";
-        return View();
+        _apiClient = apiClient;
+    }
+
+    public async Task<IActionResult> Index(DateOnly? date)
+    {
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.Today);
+        var result = await _apiClient.GetGrandManagerDashboardAsync(targetDate);
+        if (!result.Success || result.Value == null)
+        {
+            ViewBag.ErrorMessage = result.Message;
+        }
+        else
+        {
+            ViewBag.DashboardLoaded = true;
+        }
+
+        ViewData["Title"] = "Dashboard quản lý tổng";
+        return View(result.Value ?? new AdminDashboardViewModel { TargetDate = targetDate });
     }
 }

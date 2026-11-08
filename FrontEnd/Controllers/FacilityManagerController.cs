@@ -28,6 +28,10 @@ public class FacilityManagerController : Controller
         {
             ViewBag.ErrorMessage = result.Message;
         }
+        else
+        {
+            ViewBag.DashboardLoaded = true;
+        }
 
         ViewData["Title"] = "Facility Manager Dashboard";
         ViewData["FacilityId"] = _currentUser.FacilityId;

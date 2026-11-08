@@ -5,8 +5,8 @@ using FrontEnd.Services.Api;
 
 namespace FrontEnd.Controllers;
 
-/// <summary>Attendance roster, save/update, and completion actions for lecturers.</summary>
-[Authorize(Roles = "Lecturer")]
+/// <summary>Lecturers edit attendance; managers browse attendance records within their scope.</summary>
+[Authorize(Roles = "GrandManager,FacilityManager,Lecturer")]
 public sealed class AttendanceController : Controller
 {
     private readonly TutorFlowApiClient _apiClient;
@@ -17,20 +17,43 @@ public sealed class AttendanceController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(int sessionId)
+    public async Task<IActionResult> Index(int? sessionId, DateOnly? from, DateOnly? to)
     {
-        var result = await _apiClient.GetAttendanceRosterAsync(sessionId);
+        if (!sessionId.HasValue)
+        {
+            if (!User.IsInRole("FacilityManager") && !User.IsInRole("GrandManager"))
+            {
+                return RedirectToAction("Index", "Schedule");
+            }
+
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var end = to ?? today;
+            var start = from ?? end.AddDays(-30);
+            var sessions = await _apiClient.GetAttendanceSessionsAsync(start, end);
+            if (!sessions.Success) ViewBag.ErrorMessage = sessions.Message;
+
+            ViewData["Title"] = "Theo dõi điểm danh";
+            return View("Sessions", new AttendanceSessionsPageViewModel
+            {
+                From = start,
+                To = end,
+                Sessions = sessions.Value ?? new List<AttendanceSessionListViewModel>()
+            });
+        }
+
+        var result = await _apiClient.GetAttendanceRosterAsync(sessionId.Value);
         if (!result.Success || result.Value == null)
         {
             ViewBag.ErrorMessage = result.Message;
-            return View(new AttendanceRosterViewModel { SessionId = sessionId });
+            return View(new AttendanceRosterViewModel { SessionId = sessionId.Value });
         }
 
-        ViewData["Title"] = "Điểm danh buổi học";
+        ViewData["Title"] = User.IsInRole("Lecturer") ? "Điểm danh buổi học" : "Xem điểm danh";
         return View(result.Value);
     }
 
     [HttpPost]
+    [Authorize(Roles = "Lecturer")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(AttendanceSaveViewModel model)
     {
@@ -52,12 +75,13 @@ public sealed class AttendanceController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Lecturer")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Complete(int sessionId)
     {
         var result = await _apiClient.CompleteAttendanceSessionAsync(sessionId);
         TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Message;
-        return RedirectToAction("Index", "Schedule");
+        return RedirectToAction(nameof(Index), new { sessionId });
     }
 
     private async Task<IActionResult> ReloadWithSubmittedValuesAsync(AttendanceSaveViewModel posted)

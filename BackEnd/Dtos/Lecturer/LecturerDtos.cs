@@ -31,6 +31,21 @@ public sealed class AttendanceRosterDto
     public List<AttendanceRosterStudentDto> Students { get; init; } = new();
 }
 
+public sealed class AttendanceSessionListDto
+{
+    public int SessionId { get; init; }
+    public int ClassId { get; init; }
+    public string ClassName { get; init; } = string.Empty;
+    public DateOnly SessionDate { get; init; }
+    public string ShiftName { get; init; } = string.Empty;
+    public string RoomNumber { get; init; } = string.Empty;
+    public string FacilityName { get; init; } = string.Empty;
+    public string LecturerName { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int EligibleStudentCount { get; init; }
+    public int RecordedAttendanceCount { get; init; }
+}
+
 public sealed class AttendanceRosterStudentDto
 {
     public int StudentId { get; init; }

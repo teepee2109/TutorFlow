@@ -22,6 +22,10 @@ public class AdminController : Controller
         {
             ViewBag.ErrorMessage = result.Message;
         }
+        else
+        {
+            ViewBag.DashboardLoaded = true;
+        }
 
         return View(result.Value ?? new FrontEnd.Models.AdminDashboardViewModel { TargetDate = targetDate });
     }

@@ -88,7 +88,9 @@ public sealed class EnrollmentService : IEnrollmentService
             return Result<EnrollmentPreviewDto>.Ok(new EnrollmentPreviewDto { AlreadyEnrolled = true }, "Học viên đã ghi danh Active vào lớp này.");
 
         var targetSessions = _db.ClassSessions.AsNoTracking()
-            .Where(session => session.ClassId == request.ClassId && session.Status != "Cancelled");
+            .Where(session => session.ClassId == request.ClassId
+                && session.Status != "Cancelled"
+                && session.SessionDate >= request.EnrollDate);
         var conflicts = await (
             from enrollment in _db.Enrollments.AsNoTracking()
             join otherSession in _db.ClassSessions.AsNoTracking() on enrollment.ClassId equals otherSession.ClassId
@@ -97,6 +99,7 @@ public sealed class EnrollmentService : IEnrollmentService
                 && enrollment.Status == "Active"
                 && enrollment.ClassId != request.ClassId
                 && otherSession.Status != "Cancelled"
+                && otherSession.SessionDate >= enrollment.EnrollDate
                 && targetSession.SessionDate == otherSession.SessionDate
                 && targetSession.ShiftId == otherSession.ShiftId
             select new EnrollmentConflictDto

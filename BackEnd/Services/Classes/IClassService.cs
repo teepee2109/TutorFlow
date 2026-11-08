@@ -5,7 +5,7 @@ namespace BackEnd.Services.Classes;
 
 public interface IClassService
 {
-    Task<Result<List<ClassListItemDto>>> GetClassesAsync();
+    Task<Result<List<ClassListItemDto>>> GetClassesAsync(string? search = null, string? status = null, int? subjectId = null, int? lecturerId = null);
     Task<Result<ClassDetailDto>> GetClassAsync(int classId);
     Task<Result<ClassOptionsDto>> GetOptionsAsync();
     Task<Result<List<ScheduleConflictDto>>> PreviewConflictsAsync(ClassWriteDto request, int? excludeClassId = null);

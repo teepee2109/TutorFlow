@@ -46,6 +46,28 @@ public sealed class AttendanceRosterViewModel
     public List<AttendanceRosterStudentViewModel> Students { get; set; } = new();
 }
 
+public sealed class AttendanceSessionsPageViewModel
+{
+    public DateOnly From { get; set; }
+    public DateOnly To { get; set; }
+    public List<AttendanceSessionListViewModel> Sessions { get; set; } = new();
+}
+
+public sealed class AttendanceSessionListViewModel
+{
+    public int SessionId { get; set; }
+    public int ClassId { get; set; }
+    public string ClassName { get; set; } = string.Empty;
+    public DateOnly SessionDate { get; set; }
+    public string ShiftName { get; set; } = string.Empty;
+    public string RoomNumber { get; set; } = string.Empty;
+    public string FacilityName { get; set; } = string.Empty;
+    public string LecturerName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int EligibleStudentCount { get; set; }
+    public int RecordedAttendanceCount { get; set; }
+}
+
 public sealed class AttendanceSaveViewModel
 {
     public int SessionId { get; set; }

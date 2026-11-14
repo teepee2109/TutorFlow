@@ -46,7 +46,7 @@ public sealed class AdminDashboardService : IAdminDashboardService
                 ActiveStudents = stats.ActiveStudents,
                 PendingChangeRequests = stats.PendingChangeRequests,
                 TotalUnpaidTuition = await GetUnpaidTuitionBalanceAsync(
-                    _db.Tuitions.Where(tuition => tuition.PaymentStatus == "Unpaid")),
+                    _db.Tuitions.Where(tuition => tuition.PaymentStatus != "Paid")),
                 RoomShiftStatuses = roomShiftStatuses
             });
         }
@@ -109,7 +109,7 @@ public sealed class AdminDashboardService : IAdminDashboardService
                         && ((request.RequestedRoomId.HasValue && request.RequestedRoom!.FacilityId == facilityId)
                             || (!request.RequestedRoomId.HasValue && request.CurrentRoom.FacilityId == facilityId))),
                 TotalUnpaidTuition = await GetUnpaidTuitionBalanceAsync(
-                    _db.Tuitions.Where(tuition => tuition.PaymentStatus == "Unpaid"
+                    _db.Tuitions.Where(tuition => tuition.PaymentStatus != "Paid"
                         && tuition.Class.FacilityId == facilityId)),
                 RoomShiftStatuses = roomShiftStatuses
             };

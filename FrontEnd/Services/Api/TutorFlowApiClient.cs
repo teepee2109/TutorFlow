@@ -133,8 +133,14 @@ public sealed class TutorFlowApiClient
     public Task<ApiResponse<EnrollmentPreviewViewModel>> PreviewEnrollmentAsync(EnrollmentRequestViewModel request) =>
         SendAsync<EnrollmentPreviewViewModel>(HttpMethod.Post, "api/enrollments/preview", request);
 
+    public Task<ApiResponse<BulkEnrollmentCheckViewModel>> PreviewBulkEnrollmentAsync(BulkEnrollmentRequestViewModel request) =>
+        SendAsync<BulkEnrollmentCheckViewModel>(HttpMethod.Post, "api/enrollments/bulk-preview", request);
+
     public Task<ApiResponse<EnrollmentViewModel>> EnrollStudentAsync(EnrollmentRequestViewModel request) =>
         SendAsync<EnrollmentViewModel>(HttpMethod.Post, "api/enrollments", request);
+
+    public Task<ApiResponse<BulkEnrollmentResultViewModel>> EnrollStudentsAsync(BulkEnrollmentRequestViewModel request) =>
+        SendAsync<BulkEnrollmentResultViewModel>(HttpMethod.Post, "api/enrollments/bulk", request);
 
     public Task<ApiResponse> DropEnrollmentAsync(int enrollmentId) =>
         SendAsync(HttpMethod.Put, $"api/enrollments/{enrollmentId}/drop");
@@ -168,6 +174,23 @@ public sealed class TutorFlowApiClient
 
     public Task<ApiResponse<List<TuitionRecordViewModel>>> GetMyTuitionsAsync() =>
         SendAsync<List<TuitionRecordViewModel>>(HttpMethod.Get, "api/student-portal/tuitions");
+
+    public Task<ApiResponse<PaymentRequestViewModel>> CreateMyPaymentRequestAsync(CreatePaymentRequestViewModel request) =>
+        SendAsync<PaymentRequestViewModel>(HttpMethod.Post,
+            $"api/student-portal/tuitions/{request.TuitionId}/payment-requests", new
+            {
+                request.AmountRequested,
+                request.PaymentMethod,
+                request.TransferReference,
+                request.Note
+            });
+
+    public Task<ApiResponse<List<PaymentRequestViewModel>>> GetPendingPaymentRequestsAsync() =>
+        SendAsync<List<PaymentRequestViewModel>>(HttpMethod.Get, "api/tuitions/payment-requests/pending");
+
+    public Task<ApiResponse<PaymentRequestViewModel>> ReviewPaymentRequestAsync(int requestId, string decision, string? note) =>
+        SendAsync<PaymentRequestViewModel>(HttpMethod.Post, $"api/tuitions/payment-requests/{requestId}/review",
+            new { Decision = decision, ReviewNote = note });
 
     public Task<ApiResponse<List<RoomShiftStatusViewModel>>> GetRoomStatusGridAsync(DateOnly date, int? facilityId = null)
     {
@@ -211,7 +234,7 @@ public sealed class TutorFlowApiClient
         SendAsync<List<AttendanceSessionListViewModel>>(HttpMethod.Get,
             $"api/attendance/sessions?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
 
-    public Task<ApiResponse> SaveAttendanceAsync(int sessionId, IEnumerable<AttendanceRosterStudentViewModel> students) =>
+    public Task<ApiResponse> SaveAttendanceAsync(int sessionId, IEnumerable<AttendanceSaveStudentViewModel> students) =>
         SendAsync(HttpMethod.Put, $"api/attendance/{sessionId}", new
         {
             Items = students.Select(student => new

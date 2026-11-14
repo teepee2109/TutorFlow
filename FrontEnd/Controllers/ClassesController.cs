@@ -157,6 +157,14 @@ public sealed class ClassesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateMissingSessions(int classId)
+    {
+        SetMessage(await _apiClient.GenerateClassSessionsAsync(classId));
+        return RedirectToAction(nameof(Details), new { id = classId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangeLecturer(int classId, int lecturerId)
     {
         SetMessage(await _apiClient.ChangeClassLecturerAsync(classId, lecturerId));

@@ -47,6 +47,8 @@ END;
 
 DECLARE @Today DATE = CONVERT(DATE, GETDATE());
 DECLARE @MonthStart DATE = DATEFROMPARTS(YEAR(@Today), MONTH(@Today), 1);
+DECLARE @TuitionPeriodFrom DATE = DATEADD(MONTH, -1, @MonthStart);
+DECLARE @TuitionPeriodTo DATE = DATEADD(DAY, -1, @MonthStart);
 DECLARE @DemoPasswordHash NVARCHAR(255) = N'$2a$11$9a.BKnjMG.j5tmrIiZdSc..d0z/Yg8WPLN9vd1SQRkjL9ld.URIey';
 DECLARE @AdminRoleId INT;
 DECLARE @GrandManagerRoleId INT;
@@ -86,11 +88,23 @@ BEGIN TRY
     INSERT INTO dbo.Shifts (ShiftName, StartTime, EndTime)
     SELECT expected.ShiftName, expected.StartTime, expected.EndTime
     FROM (VALUES
-        (N'Ca 1', CONVERT(TIME, '04:30:00'), CONVERT(TIME, '06:00:00')),
-        (N'Ca 2', CONVERT(TIME, '06:00:00'), CONVERT(TIME, '07:30:00')),
-        (N'Ca 3', CONVERT(TIME, '07:30:00'), CONVERT(TIME, '09:00:00'))
+        (N'Ca 1', CONVERT(TIME, '16:30:00'), CONVERT(TIME, '18:00:00')),
+        (N'Ca 2', CONVERT(TIME, '18:00:00'), CONVERT(TIME, '19:30:00')),
+        (N'Ca 3', CONVERT(TIME, '19:30:00'), CONVERT(TIME, '21:00:00'))
     ) AS expected(ShiftName, StartTime, EndTime)
     WHERE NOT EXISTS (SELECT 1 FROM dbo.Shifts currentShift WHERE currentShift.ShiftName = expected.ShiftName);
+
+    /* Correct existing demo shifts too; preserve ShiftId references from classes and sessions. */
+    UPDATE currentShift
+    SET currentShift.StartTime = expected.StartTime,
+        currentShift.EndTime = expected.EndTime
+    FROM dbo.Shifts AS currentShift
+    JOIN (VALUES
+        (N'Ca 1', CONVERT(TIME, '16:30:00'), CONVERT(TIME, '18:00:00')),
+        (N'Ca 2', CONVERT(TIME, '18:00:00'), CONVERT(TIME, '19:30:00')),
+        (N'Ca 3', CONVERT(TIME, '19:30:00'), CONVERT(TIME, '21:00:00'))
+    ) AS expected(ShiftName, StartTime, EndTime)
+        ON expected.ShiftName = currentShift.ShiftName;
 
     INSERT INTO dbo.Subjects (SubjectName)
     SELECT expected.SubjectName
@@ -500,61 +514,59 @@ BEGIN TRY
     WHERE SettingKey = N'TUITION_PER_SESSION';
     SET @TuitionPerSession = COALESCE(@TuitionPerSession, 200000);
 
-    /* One current-month tuition record per active enrollment. */
+    /* Issue sample invoices for the previous, closed month after completed sessions exist. */
     INSERT INTO dbo.Tuitions
-        (StudentId, ClassId, PeriodFrom, PeriodTo, SessionsAttended, AmountPerSession, PaymentStatus, DueDate)
+        (StudentId, ClassId, PeriodFrom, PeriodTo, BillableSessions, AmountPerSession, PaymentStatus, DueDate)
     SELECT
         enrollment.StudentId,
         class.ClassId,
-        @MonthStart,
-        @Today,
-        attendance.PresentCount,
+        @TuitionPeriodFrom,
+        @TuitionPeriodTo,
+        attendance.BillableSessions,
         @TuitionPerSession,
-        CASE WHEN enrollment.StudentId % 2 = 1 THEN N'Paid' ELSE N'Unpaid' END,
-        DATEADD(DAY, 7, EOMONTH(@Today))
+        CASE enrollment.StudentId % 3 WHEN 1 THEN N'Paid' WHEN 2 THEN N'PartiallyPaid' ELSE N'Unpaid' END,
+        DATEADD(DAY, 7, @Today)
     FROM dbo.Classes AS class
     JOIN dbo.Enrollments AS enrollment
       ON enrollment.ClassId = class.ClassId
      AND enrollment.Status = N'Active'
     OUTER APPLY
     (
-        SELECT COUNT(*) AS PresentCount
-        FROM dbo.Attendance attendanceRow
-        JOIN dbo.ClassSessions completedSession
+        SELECT COUNT(*) AS BillableSessions
+        FROM dbo.Attendance AS attendanceRow
+        JOIN dbo.ClassSessions AS completedSession
           ON completedSession.SessionId = attendanceRow.SessionId
         WHERE attendanceRow.StudentId = enrollment.StudentId
           AND completedSession.ClassId = class.ClassId
           AND completedSession.Status = N'Completed'
-          AND completedSession.SessionDate BETWEEN @MonthStart AND @Today
-          AND attendanceRow.Status = N'Present'
+          AND completedSession.SessionDate BETWEEN @TuitionPeriodFrom AND @TuitionPeriodTo
+          AND attendanceRow.Status IN (N'Present', N'UnexcusedAbsent')
     ) AS attendance
     WHERE class.Status = N'Active'
+      AND attendance.BillableSessions > 0
       AND NOT EXISTS
     (
         SELECT 1 FROM dbo.Tuitions currentTuition
         WHERE currentTuition.StudentId = enrollment.StudentId
           AND currentTuition.ClassId = class.ClassId
-          AND currentTuition.PeriodFrom = @MonthStart
-          AND currentTuition.PeriodTo = @Today
+          AND currentTuition.PeriodFrom = @TuitionPeriodFrom
+          AND currentTuition.PeriodTo = @TuitionPeriodTo
     );
 
-    /* Add a full or partial payment for current-month sample tuition when one is missing. */
+    /* Add a full or partial payment only for sample invoices marked paid. */
     INSERT INTO dbo.Payments (TuitionId, AmountPaid, PaymentDate, PaymentMethod, ReceivedBy, ReceiptNumber)
     SELECT
         tuition.TuitionId,
         CASE WHEN tuition.PaymentStatus = N'Paid' THEN tuition.TotalAmount ELSE tuition.TotalAmount / 2 END,
-        DATEADD(DAY, -1, CONVERT(DATETIME, @Today)),
+        CONVERT(DATETIME, @Today),
         CASE WHEN tuition.StudentId % 2 = 1 THEN N'Chuyển khoản' ELSE N'Tiền mặt' END,
         @GrandManagerId,
         CONCAT(N'TF-SEED-', RIGHT(CONCAT(N'0000', tuition.TuitionId), 4))
-    FROM dbo.Classes AS class
-    JOIN dbo.Tuitions AS tuition
-      ON tuition.ClassId = class.ClassId
-     AND tuition.PeriodFrom = @MonthStart
-     AND tuition.PeriodTo = @Today
-    WHERE class.Status = N'Active'
+    FROM dbo.Tuitions AS tuition
+    WHERE tuition.PeriodFrom = @TuitionPeriodFrom
+      AND tuition.PeriodTo = @TuitionPeriodTo
+      AND tuition.PaymentStatus IN (N'Paid', N'PartiallyPaid')
       AND NOT EXISTS (SELECT 1 FROM dbo.Payments existingPayment WHERE existingPayment.TuitionId = tuition.TuitionId);
-
     /* Room/shift requests with Pending, Approved, and Rejected examples. */
     INSERT INTO dbo.RoomChangeRequests
         (LecturerId, ClassId, SessionId, CurrentRoomId, RequestedRoomId, CurrentShiftId,

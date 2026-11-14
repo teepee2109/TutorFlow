@@ -120,9 +120,20 @@ public sealed class UsersController : ControllerBase
     public async Task<IActionResult> CreateUser(UserCreateDto request)
     {
         var result = await _userService.CreateUserAsync(request, CurrentRole);
-        return result.Success && result.Value != null
-            ? Ok(ApiResponse<UserDto>.Ok(result.Value, result.Message))
-            : BadRequest(ApiResponse<UserDto>.Fail(result.Message));
+
+        if (!result.Success || result.Value is null)
+        {
+            return new ContentResult
+            {
+                Content = result.Message,
+                ContentType = "text/plain; charset=utf-8",
+                StatusCode = StatusCodes.Status400BadRequest
+            };
+        }
+
+        return Content(
+            result.Message ?? "Tạo tài khoản thành công.",
+            "text/plain; charset=utf-8");
     }
 
     [HttpPut("{id:int}")]

@@ -43,6 +43,15 @@ public sealed class EnrollmentsController : ControllerBase
             : StatusCode(StatusFor(result.Error), ApiResponse<EnrollmentPreviewDto>.Fail(result.Message));
     }
 
+    [HttpPost("bulk-preview")]
+    public async Task<IActionResult> BulkPreview(BulkEnrollmentRequestDto request)
+    {
+        var result = await _service.PreviewManyAsync(request);
+        return result.Success && result.Value != null
+            ? Ok(ApiResponse<BulkEnrollmentCheckDto>.Ok(result.Value))
+            : StatusCode(StatusFor(result.Error), ApiResponse<BulkEnrollmentCheckDto>.Fail(result.Message));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Enroll(EnrollmentRequestDto request)
     {
@@ -50,6 +59,15 @@ public sealed class EnrollmentsController : ControllerBase
         return result.Success && result.Value != null
             ? Ok(ApiResponse<EnrollmentDto>.Ok(result.Value, result.Message))
             : StatusCode(StatusFor(result.Error), ApiResponse<EnrollmentDto>.Fail(result.Message));
+    }
+
+    [HttpPost("bulk")]
+    public async Task<IActionResult> BulkEnroll(BulkEnrollmentRequestDto request)
+    {
+        var result = await _service.EnrollManyAsync(request);
+        return result.Success && result.Value != null
+            ? Ok(ApiResponse<BulkEnrollmentResultDto>.Ok(result.Value, result.Message))
+            : StatusCode(StatusFor(result.Error), ApiResponse<BulkEnrollmentResultDto>.Fail(result.Message));
     }
 
     [HttpPut("{enrollmentId:int}/drop")]

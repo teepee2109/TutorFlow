@@ -46,6 +46,54 @@ public sealed class EnrollmentRequestDto
     public DateOnly EnrollDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
 }
 
+public sealed class BulkEnrollmentRequestDto
+{
+    [MinLength(1, ErrorMessage = "Chọn ít nhất một học viên.")]
+    [MaxLength(100, ErrorMessage = "Mỗi lần chỉ có thể xử lý tối đa 100 học viên.")]
+    public List<int> StudentIds { get; set; } = new();
+
+    [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn lớp.")]
+    public int ClassId { get; set; }
+
+    public DateOnly EnrollDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+}
+
+public sealed class BulkEnrollmentStudentCheckDto
+{
+    public int StudentId { get; init; }
+    public string StudentName { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
+    public List<EnrollmentConflictDto> Conflicts { get; init; } = new();
+}
+
+public sealed class BulkEnrollmentCheckDto
+{
+    public List<BulkEnrollmentStudentCheckDto> Students { get; init; } = new();
+    public int ReadyCount => Students.Count(item => item.Status == "Ready");
+    public int AlreadyEnrolledCount => Students.Count(item => item.Status == "AlreadyEnrolled");
+    public int ConflictCount => Students.Count(item => item.Status == "Conflict");
+    public int FailedCount => Students.Count(item => item.Status == "Failed");
+}
+
+public sealed class BulkEnrollmentStudentResultDto
+{
+    public int StudentId { get; init; }
+    public string StudentName { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
+    public List<EnrollmentConflictDto> Conflicts { get; init; } = new();
+}
+
+public sealed class BulkEnrollmentResultDto
+{
+    public List<BulkEnrollmentStudentResultDto> Students { get; init; } = new();
+    public int EnrolledCount => Students.Count(item => item.Status == "Enrolled");
+    public int AlreadyEnrolledCount => Students.Count(item => item.Status == "AlreadyEnrolled");
+    public int ConflictCount => Students.Count(item => item.Status == "Conflict");
+    public int FailedCount => Students.Count(item => item.Status == "Failed");
+}
+
 public sealed class EnrollmentConflictDto
 {
     public DateOnly Date { get; init; }

@@ -47,6 +47,15 @@ public sealed class EnrollmentRequestViewModel
     public DateOnly EnrollDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
 }
 
+public sealed class BulkEnrollmentRequestViewModel
+{
+    public List<int> StudentIds { get; set; } = new();
+
+    public int ClassId { get; set; }
+
+    public DateOnly EnrollDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+}
+
 public sealed class EnrollmentConflictViewModel
 {
     public DateOnly Date { get; set; }
@@ -61,11 +70,50 @@ public sealed class EnrollmentPreviewViewModel
     public List<EnrollmentConflictViewModel> Conflicts { get; set; } = new();
 }
 
+public sealed class BulkEnrollmentStudentCheckViewModel
+{
+    public int StudentId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public List<EnrollmentConflictViewModel> Conflicts { get; set; } = new();
+}
+
+public sealed class BulkEnrollmentCheckViewModel
+{
+    public List<BulkEnrollmentStudentCheckViewModel> Students { get; set; } = new();
+    public int ReadyCount { get; set; }
+    public int AlreadyEnrolledCount { get; set; }
+    public int ConflictCount { get; set; }
+    public int FailedCount { get; set; }
+}
+
+public sealed class BulkEnrollmentStudentResultViewModel
+{
+    public int StudentId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public List<EnrollmentConflictViewModel> Conflicts { get; set; } = new();
+}
+
+public sealed class BulkEnrollmentResultViewModel
+{
+    public List<BulkEnrollmentStudentResultViewModel> Students { get; set; } = new();
+    public int EnrolledCount { get; set; }
+    public int AlreadyEnrolledCount { get; set; }
+    public int ConflictCount { get; set; }
+    public int FailedCount { get; set; }
+}
+
 public sealed class EnrollmentsPageViewModel
 {
     public EnrollmentOptionsViewModel Options { get; set; } = new();
     public EnrollmentRequestViewModel Form { get; set; } = new();
+    public BulkEnrollmentRequestViewModel BulkForm { get; set; } = new();
     public EnrollmentPreviewViewModel? Preview { get; set; }
+    public BulkEnrollmentCheckViewModel? BulkCheck { get; set; }
+    public BulkEnrollmentResultViewModel? BulkResult { get; set; }
     public List<EnrollmentViewModel> Enrollments { get; set; } = new();
     public string? Search { get; set; }
     public string Status { get; set; } = "All";

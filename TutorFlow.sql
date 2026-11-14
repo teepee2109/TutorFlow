@@ -261,11 +261,11 @@ CREATE TABLE Tuitions (
     ClassId           INT NOT NULL,
     PeriodFrom        DATE NOT NULL,
     PeriodTo          DATE NOT NULL,
-    SessionsAttended  INT NOT NULL DEFAULT 0,            -- Tổng số buổi "Present" (BR-08)
-    AmountPerSession  DECIMAL(12,0) NOT NULL DEFAULT 200000,
-    TotalAmount       AS (SessionsAttended * AmountPerSession) PERSISTED,
-    PaymentStatus     NVARCHAR(20) NOT NULL DEFAULT 'Unpaid'
-                          CHECK (PaymentStatus IN ('Paid','Unpaid')),
+    BillableSessions INT NOT NULL DEFAULT 0,
+    AmountPerSession DECIMAL(12,0) NOT NULL DEFAULT 200000,
+    TotalAmount AS (BillableSessions * AmountPerSession) PERSISTED,
+    PaymentStatus NVARCHAR(20) NOT NULL DEFAULT 'Unpaid',
+    CONSTRAINT CK_Tuitions_PaymentStatus CHECK (PaymentStatus IN ('Unpaid','PartiallyPaid','Paid')),
     DueDate           DATE NULL,
     CreatedAt         DATETIME NOT NULL DEFAULT GETDATE(),
     CONSTRAINT FK_Tuitions_Students FOREIGN KEY (StudentId) REFERENCES Users(UserId),
@@ -286,6 +286,30 @@ CREATE TABLE Payments (
     CONSTRAINT FK_Payments_Tuitions FOREIGN KEY (TuitionId)  REFERENCES Tuitions(TuitionId),
     CONSTRAINT FK_Payments_Users    FOREIGN KEY (ReceivedBy) REFERENCES Users(UserId)
 );
+GO
+
+CREATE TABLE PaymentRequests (
+    PaymentRequestId INT IDENTITY(1,1) PRIMARY KEY,
+    TuitionId INT NOT NULL,
+    StudentId INT NOT NULL,
+    AmountRequested DECIMAL(12,0) NOT NULL,
+    PaymentMethod NVARCHAR(50) NOT NULL,
+    TransferReference NVARCHAR(50) NULL,
+    Note NVARCHAR(255) NULL,
+    Status NVARCHAR(20) NOT NULL CONSTRAINT DF_PaymentRequests_Status DEFAULT N'Pending',
+    RequestedAt DATETIME NOT NULL CONSTRAINT DF_PaymentRequests_RequestedAt DEFAULT GETDATE(),
+    ReviewedBy INT NULL,
+    ReviewedAt DATETIME NULL,
+    ReviewNote NVARCHAR(255) NULL,
+    PaymentId INT NULL,
+    CONSTRAINT CK_PaymentRequests_Status_Amount CHECK (Status IN (N'Pending', N'Approved', N'Rejected') AND AmountRequested > 0),
+    CONSTRAINT FK_PaymentRequests_Tuitions FOREIGN KEY (TuitionId) REFERENCES Tuitions(TuitionId),
+    CONSTRAINT FK_PaymentRequests_Students FOREIGN KEY (StudentId) REFERENCES Users(UserId),
+    CONSTRAINT FK_PaymentRequests_Reviewers FOREIGN KEY (ReviewedBy) REFERENCES Users(UserId),
+    CONSTRAINT FK_PaymentRequests_Payments FOREIGN KEY (PaymentId) REFERENCES Payments(PaymentId)
+);
+CREATE INDEX IX_PaymentRequests_TuitionStatus ON PaymentRequests(TuitionId, Status);
+CREATE UNIQUE INDEX UX_PaymentRequests_PaymentId ON PaymentRequests(PaymentId) WHERE PaymentId IS NOT NULL;
 GO
 
 /* =====================================================================
@@ -597,7 +621,7 @@ SELECT
             WHERE p.TuitionId = t.TuitionId
         ), 0))
         FROM Tuitions t
-        WHERE t.PaymentStatus = 'Unpaid'
+        WHERE t.PaymentStatus <> 'Paid'
     ), 0) AS TotalUnpaidTuition;
 GO
 
@@ -657,17 +681,12 @@ RETURN
         ISNULL(SUM(CASE WHEN a.Status = 'Present' THEN 1 ELSE 0 END), 0) AS PresentCount,
         ISNULL(SUM(CASE WHEN a.Status = 'ExcusedAbsent' THEN 1 ELSE 0 END), 0) AS ExcusedCount,
         ISNULL(SUM(CASE WHEN a.Status = 'UnexcusedAbsent' THEN 1 ELSE 0 END), 0) AS UnexcusedCount,
-        COUNT(a.AttendanceId) AS TotalSessions,
-        CAST(ISNULL(SUM(CASE WHEN a.Status = 'Present' THEN 1 ELSE 0 END), 0) * 200000 AS DECIMAL(12,0)) AS TuitionAmount
-    FROM Enrollments e
-    JOIN Users u ON u.UserId = e.StudentId
-    JOIN Classes c ON c.ClassId = e.ClassId
-    JOIN ClassSessions cs ON cs.ClassId = c.ClassId
-                         AND cs.SessionDate BETWEEN @PeriodFrom AND @PeriodTo
-                         AND cs.Status = 'Completed'
-    LEFT JOIN Attendance a ON a.SessionId = cs.SessionId AND a.StudentId = e.StudentId
-    WHERE e.Status = 'Active'
-    GROUP BY e.StudentId, u.FullName, e.ClassId, c.ClassName
+        SUM(CASE WHEN a.Status IN ('Present','UnexcusedAbsent') THEN 1 ELSE 0 END) AS BillableSessions,
+        COUNT(a.AttendanceId) AS TotalSessions
+    FROM ClassSessions cs JOIN Classes c ON c.ClassId = cs.ClassId
+    JOIN Attendance a ON a.SessionId = cs.SessionId JOIN Users u ON u.UserId = a.StudentId
+    WHERE cs.SessionDate BETWEEN @PeriodFrom AND @PeriodTo AND cs.Status = 'Completed'
+    GROUP BY a.StudentId, u.FullName, cs.ClassId, c.ClassName
 );
 GO
 
@@ -716,11 +735,11 @@ BEGIN
 END
 GO
 
--- 12.4 Shifts (3 ca học)
+-- 12.4 Shifts (3 ca chiều/tối, mỗi ca 90 phút)
 INSERT INTO Shifts (ShiftName, StartTime, EndTime) VALUES
-(N'Ca 1', '04:30:00', '06:00:00'),
-(N'Ca 2', '06:00:00', '07:30:00'),
-(N'Ca 3', '07:30:00', '09:00:00');
+(N'Ca 1', '16:30:00', '18:00:00'),
+(N'Ca 2', '18:00:00', '19:30:00'),
+(N'Ca 3', '19:30:00', '21:00:00');
 GO
 
 -- 12.5 Subjects (5 môn học)
@@ -928,34 +947,50 @@ SELECT
 FROM Enrollments AS enrollment
 JOIN ClassSessions AS cs ON cs.ClassId = enrollment.ClassId;
 
--- 12.12 Tuitions: 300 kỳ học phí mẫu; mỗi lớp có 15 học viên.
+-- 12.12 Tuitions: invoices for the previous, completed calendar month only.
+DECLARE @TuitionPeriodFrom DATE = DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(@Today), MONTH(@Today), 1));
+DECLARE @TuitionPeriodTo DATE = DATEADD(DAY, -1, DATEFROMPARTS(YEAR(@Today), MONTH(@Today), 1));
 INSERT INTO Tuitions
-    (StudentId, ClassId, PeriodFrom, PeriodTo, SessionsAttended, AmountPerSession, PaymentStatus, DueDate)
+    (StudentId, ClassId, PeriodFrom, PeriodTo, BillableSessions, AmountPerSession, PaymentStatus, DueDate)
 SELECT
     enrollment.StudentId,
     enrollment.ClassId,
-    DATEADD(DAY, -30, @Today),
-    @Today,
-    1,
+    @TuitionPeriodFrom,
+    @TuitionPeriodTo,
+    attendance.BillableSessions,
     200000,
-    CASE WHEN TRY_CONVERT(INT, RIGHT(c.ClassName, 2)) % 2 = 0 THEN N'Unpaid' ELSE N'Paid' END,
+    CASE TRY_CONVERT(INT, RIGHT(c.ClassName, 2)) % 3 WHEN 0 THEN N'Paid' WHEN 1 THEN N'PartiallyPaid' ELSE N'Unpaid' END,
     DATEADD(DAY, 7, @Today)
 FROM Enrollments AS enrollment
-JOIN Classes AS c ON c.ClassId = enrollment.ClassId;
+JOIN Classes AS c ON c.ClassId = enrollment.ClassId
+CROSS APPLY
+(
+    SELECT COUNT(*) AS BillableSessions
+    FROM Attendance AS a
+    JOIN ClassSessions AS cs ON cs.SessionId = a.SessionId
+    WHERE a.StudentId = enrollment.StudentId
+      AND cs.ClassId = enrollment.ClassId
+      AND cs.Status = N'Completed'
+      AND cs.SessionDate BETWEEN @TuitionPeriodFrom AND @TuitionPeriodTo
+      AND a.Status IN (N'Present', N'UnexcusedAbsent')
+) AS attendance
+WHERE attendance.BillableSessions > 0;
 
--- 12.13 Payments: mỗi kỳ học phí mẫu có giao dịch tương ứng.
+-- 12.13 Payments: partial/full receipts for already-issued sample invoices.
 INSERT INTO Payments (TuitionId, AmountPaid, PaymentDate, PaymentMethod, ReceivedBy, ReceiptNumber)
 SELECT
     tuition.TuitionId,
     CASE WHEN tuition.PaymentStatus = N'Paid' THEN tuition.TotalAmount ELSE tuition.TotalAmount / 2 END,
-    DATEADD(DAY, -1, GETDATE()),
+    GETDATE(),
     CASE WHEN tuition.TuitionId % 2 = 0 THEN N'Chuyển khoản' ELSE N'Tiền mặt' END,
     gm.UserId,
     CONCAT(N'TF-DEMO-', RIGHT(CONCAT(N'0000', tuition.TuitionId), 4))
 FROM Tuitions AS tuition
 CROSS JOIN Users AS gm
-WHERE gm.Email = N'gm@tutorflow.local';
-
+WHERE gm.Email = N'gm@tutorflow.local'
+  AND tuition.PeriodFrom = @TuitionPeriodFrom
+  AND tuition.PeriodTo = @TuitionPeriodTo
+  AND tuition.PaymentStatus IN (N'Paid', N'PartiallyPaid');
 -- 12.14 RoomChangeRequests: 20 yêu cầu với đủ trạng thái chờ duyệt/đã duyệt/từ chối.
 INSERT INTO RoomChangeRequests
     (LecturerId, ClassId, SessionId, CurrentRoomId, RequestedRoomId, CurrentShiftId,

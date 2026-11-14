@@ -49,6 +49,30 @@ public sealed class EnrollmentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkPreview([Bind(Prefix = "BulkForm")] BulkEnrollmentRequestViewModel request)
+    {
+        var model = new EnrollmentsPageViewModel { BulkForm = request };
+        ValidateBulkRequest(request);
+        if (!ModelState.IsValid)
+        {
+            await LoadOptionsAndListAsync(model);
+            ViewData["Title"] = "Ghi danh học viên";
+            return View("Index", model);
+        }
+
+        var preview = await _apiClient.PreviewBulkEnrollmentAsync(request);
+        if (!preview.Success || preview.Value == null)
+            ModelState.AddModelError(string.Empty, preview.Message);
+        else
+            model.BulkCheck = preview.Value;
+
+        await LoadOptionsAndListAsync(model);
+        ViewData["Title"] = "Ghi danh học viên";
+        return View("Index", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Enroll(EnrollmentsPageViewModel model)
     {
         var result = await _apiClient.EnrollStudentAsync(model.Form);
@@ -62,6 +86,30 @@ public sealed class EnrollmentsController : Controller
 
         TempData["SuccessMessage"] = result.Message;
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkEnroll([Bind(Prefix = "BulkForm")] BulkEnrollmentRequestViewModel request)
+    {
+        var model = new EnrollmentsPageViewModel { BulkForm = request };
+        ValidateBulkRequest(request);
+        if (!ModelState.IsValid)
+        {
+            await LoadOptionsAndListAsync(model);
+            ViewData["Title"] = "Ghi danh học viên";
+            return View("Index", model);
+        }
+
+        var result = await _apiClient.EnrollStudentsAsync(request);
+        if (!result.Success || result.Value == null)
+            ModelState.AddModelError(string.Empty, result.Message);
+        else
+            model.BulkResult = result.Value;
+
+        await LoadOptionsAndListAsync(model);
+        ViewData["Title"] = "Ghi danh học viên";
+        return View("Index", model);
     }
 
     [HttpPost]
@@ -96,5 +144,21 @@ public sealed class EnrollmentsController : Controller
         var enrollments = await _apiClient.GetEnrollmentsAsync(model.Search, model.ClassFilterId, model.Status);
         if (enrollments.Success && enrollments.Value != null) model.Enrollments = enrollments.Value;
         else ViewBag.ErrorMessage = enrollments.Message;
+    }
+
+    private void ValidateBulkRequest(BulkEnrollmentRequestViewModel request)
+    {
+        var studentIds = request.StudentIds ?? new List<int>();
+        if (studentIds.Count == 0)
+            ModelState.AddModelError("BulkForm.StudentIds", "Chọn ít nhất một học viên.");
+        else if (studentIds.Distinct().Count() > 100)
+            ModelState.AddModelError("BulkForm.StudentIds", "Mỗi lần chỉ có thể xử lý tối đa 100 học viên.");
+        else if (studentIds.Any(studentId => studentId <= 0))
+            ModelState.AddModelError("BulkForm.StudentIds", "Danh sách học viên không hợp lệ.");
+
+        if (request.ClassId <= 0)
+            ModelState.AddModelError("BulkForm.ClassId", "Vui lòng chọn lớp.");
+        if (request.EnrollDate == default)
+            ModelState.AddModelError("BulkForm.EnrollDate", "Vui lòng chọn ngày ghi danh.");
     }
 }

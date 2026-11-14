@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -21,7 +21,7 @@ public partial class Tuition
 
     public DateOnly PeriodTo { get; set; }
 
-    public int SessionsAttended { get; set; }
+    public int BillableSessions { get; set; }
 
     [Column(TypeName = "decimal(12, 0)")]
     public decimal AmountPerSession { get; set; }
@@ -43,6 +43,8 @@ public partial class Tuition
 
     [InverseProperty("Tuition")]
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+
+    public virtual ICollection<PaymentRequest> PaymentRequests { get; set; } = new List<PaymentRequest>();
 
     [ForeignKey("StudentId")]
     [InverseProperty("Tuitions")]

@@ -9,6 +9,6 @@ public class StudentAttendanceTuitionDto
     public int PresentCount { get; set; }
     public int ExcusedCount { get; set; }
     public int UnexcusedCount { get; set; }
+    public int BillableSessions { get; set; }
     public int TotalSessions { get; set; }
-    public decimal TuitionAmount { get; set; }
 }

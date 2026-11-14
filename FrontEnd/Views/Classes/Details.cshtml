@@ -44,7 +44,17 @@
         <h3 class="h5 fw-bold mb-1">Danh sách buổi học</h3>
         <p class="text-muted small mb-0">Chỉ buổi ở trạng thái đã lên lịch mới có thể đổi lịch, hủy hoặc phân công dạy thay.</p>
     </div>
-    <span class="badge text-bg-light">@Model.Sessions.Count buổi</span>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge text-bg-light">@Model.Sessions.Count buổi</span>
+        @if (Model.Status == "Active")
+        {
+            <form asp-action="GenerateMissingSessions" method="post" class="mb-0">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="classId" value="@Model.ClassId" />
+                <button class="btn btn-sm btn-outline-primary" type="submit">Sinh các buổi còn thiếu</button>
+            </form>
+        }
+    </div>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -90,9 +100,19 @@
                         <td class="text-end">
                             @if (session.Status == "Scheduled" && canEditSessions)
                             {
-                                <details class="d-inline-block text-start">
-                                    <summary class="btn btn-sm btn-outline-primary">Quản lý</summary>
-                                    <div class="position-absolute end-0 mt-2 p-3 bg-white border rounded shadow" style="z-index: 5; width: min(34rem, calc(100vw - 2rem));">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-session-actions-toggle aria-controls="session-actions-@session.SessionId" aria-expanded="false">Quản lý</button>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Không có thao tác</span>
+                            }
+                        </td>
+                    </tr>
+                    @if (session.Status == "Scheduled" && canEditSessions)
+                    {
+                        <tr id="session-actions-@session.SessionId" class="session-actions-row" hidden>
+                            <td colspan="5">
+                                <div class="p-3 bg-light border-top">
                                         <form method="post" asp-action="Reschedule" class="mb-3">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="classId" value="@Model.ClassId" />
@@ -154,17 +174,32 @@
                                             @Html.AntiForgeryToken()
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Hủy buổi học</button>
                                         </form>
-                                    </div>
-                                </details>
-                            }
-                            else
-                            {
-                                <span class="text-muted small">Không có thao tác</span>
-                            }
-                        </td>
-                    </tr>
+                                </div>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
     </div>
 </div>
+@section Scripts {
+    <script>
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-session-actions-toggle]');
+            if (!button) return;
+
+            const actionsRow = document.getElementById(button.getAttribute('aria-controls'));
+            if (!actionsRow) return;
+
+            const isOpening = actionsRow.hidden;
+            actionsRow.hidden = !isOpening;
+            button.setAttribute('aria-expanded', String(isOpening));
+            button.textContent = isOpening ? 'Đóng thao tác' : 'Quản lý';
+
+            if (isOpening) {
+                actionsRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        });
+    </script>
+}

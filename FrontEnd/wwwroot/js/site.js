@@ -58,7 +58,22 @@ document.addEventListener("DOMContentLoaded", () => {
             page = Math.min(page, pageCount - 1);
             const start = page * pageSize;
             const end = Math.min(start + pageSize, rows.length);
-            rows.forEach((row, index) => { row.hidden = index < start || index >= end; });
+            rows.forEach((row, index) => {
+                const isOutsideCurrentPage = index < start || index >= end;
+                row.hidden = isOutsideCurrentPage;
+
+                const actionsRow = row.nextElementSibling?.classList.contains("session-actions-row")
+                    ? row.nextElementSibling
+                    : null;
+                if (actionsRow && isOutsideCurrentPage) {
+                    actionsRow.hidden = true;
+                    const toggle = row.querySelector("[data-session-actions-toggle]");
+                    if (toggle) {
+                        toggle.setAttribute("aria-expanded", "false");
+                        toggle.textContent = "Quản lý";
+                    }
+                }
+            });
             summary.textContent = `Hiển thị ${start + 1}–${end} / ${rows.length} dòng`;
             pageIndicator.textContent = `${page + 1} / ${pageCount}`;
             previous.disabled = page === 0;

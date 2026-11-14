@@ -1,19 +1,4 @@
-# Visual Studio and build output
+
 .vs/
-**/bin/
-**/obj/
-*.user
-*.slnLaunch.user
-/CLAUDE.md
 
-# Local settings and secrets
-**/appsettings.Development.json
-**/appsettings.Local.json
-**/appsettings.*.json
-!**/appsettings.json
-
-# Test/build output
-**/TestResults/
-artifacts/
-*.userosscache
-*.suo
+.vs/

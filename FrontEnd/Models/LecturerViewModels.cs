@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace FrontEnd.Models;
 
@@ -68,10 +68,23 @@ public sealed class AttendanceSessionListViewModel
     public int RecordedAttendanceCount { get; set; }
 }
 
+public sealed class AttendanceSaveStudentViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int StudentId { get; set; }
+
+    [Required]
+    [RegularExpression("^(Present|ExcusedAbsent|UnexcusedAbsent)$")]
+    public string AttendanceStatus { get; set; } = string.Empty;
+
+    [StringLength(255)]
+    public string? Note { get; set; }
+}
+
 public sealed class AttendanceSaveViewModel
 {
     public int SessionId { get; set; }
-    public List<AttendanceRosterStudentViewModel> Students { get; set; } = new();
+    public List<AttendanceSaveStudentViewModel> Students { get; set; } = new();
 }
 
 public sealed class RoomChangeScopeOptionViewModel

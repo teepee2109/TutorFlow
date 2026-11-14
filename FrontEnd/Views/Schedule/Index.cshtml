@@ -1,8 +1,8 @@
 @model FrontEnd.Models.LecturerScheduleViewModel
 @{
     ViewData["Title"] = "Lịch dạy của tôi";
-    var previousWeek = Model.From.AddDays(-7);
-    var nextWeek = Model.From.AddDays(7);
+    var previousWeek = Model.From.AddDays(-7).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+    var nextWeek = Model.From.AddDays(7).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
     var today = DateOnly.FromDateTime(DateTime.Today);
 }
 

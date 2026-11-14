@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using BackEnd.Data.Entities;
 using BackEnd.Dtos;
@@ -24,6 +24,8 @@ public partial class TutorFlowDbContext : DbContext
     public virtual DbSet<Facility> Facilities { get; set; }
 
     public virtual DbSet<Payment> Payments { get; set; }
+
+    public virtual DbSet<PaymentRequest> PaymentRequests { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
 
@@ -181,6 +183,27 @@ public partial class TutorFlowDbContext : DbContext
                 .HasConstraintName("FK_Payments_Tuitions");
         });
 
+        modelBuilder.Entity<PaymentRequest>(entity =>
+        {
+            entity.HasKey(e => e.PaymentRequestId);
+            entity.ToTable("PaymentRequests", table => table.HasCheckConstraint(
+                "CK_PaymentRequests_Status_Amount",
+                "([Status] IN (N'Pending', N'Approved', N'Rejected') AND [AmountRequested] > 0)"));
+            entity.Property(e => e.Status).HasDefaultValue("Pending");
+            entity.Property(e => e.RequestedAt).HasDefaultValueSql("(getdate())");
+            entity.HasIndex(e => new { e.TuitionId, e.Status }, "IX_PaymentRequests_TuitionStatus");
+            entity.HasIndex(e => e.PaymentId, "UX_PaymentRequests_PaymentId")
+                .IsUnique().HasFilter("[PaymentId] IS NOT NULL");
+            entity.HasOne(e => e.Tuition).WithMany(e => e.PaymentRequests)
+                .HasForeignKey(e => e.TuitionId).OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PaymentRequests_Tuitions");
+            entity.HasOne(e => e.Student).WithMany().HasForeignKey(e => e.StudentId)
+                .OnDelete(DeleteBehavior.ClientSetNull).HasConstraintName("FK_PaymentRequests_Students");
+            entity.HasOne(e => e.ReviewedByNavigation).WithMany().HasForeignKey(e => e.ReviewedBy)
+                .HasConstraintName("FK_PaymentRequests_Reviewers");
+            entity.HasOne(e => e.Payment).WithOne().HasForeignKey<PaymentRequest>(e => e.PaymentId)
+                .HasConstraintName("FK_PaymentRequests_Payments");
+        });
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasKey(e => e.RoleId).HasName("PK__Roles__8AFACE1A86348AA2");
@@ -253,7 +276,7 @@ public partial class TutorFlowDbContext : DbContext
             entity.Property(e => e.AmountPerSession).HasDefaultValue(200000m);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.PaymentStatus).HasDefaultValue("Unpaid");
-            entity.Property(e => e.TotalAmount).HasComputedColumnSql("([SessionsAttended]*[AmountPerSession])", true);
+            entity.Property(e => e.TotalAmount).HasComputedColumnSql("([BillableSessions]*[AmountPerSession])", true);
 
             entity.HasOne(d => d.Class).WithMany(p => p.Tuitions)
                 .OnDelete(DeleteBehavior.ClientSetNull)

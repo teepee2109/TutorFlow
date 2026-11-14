@@ -87,7 +87,7 @@
                             <td class="fw-semibold">@student.FullName</td>
                             <td>@student.Email</td>
                             <td>
-                                @if (User.IsInRole("Lecturer"))
+                                @if (User.IsInRole("Lecturer") && Model.Status != "Completed")
                                 {
                                     <select name="Students[@index].AttendanceStatus" class="form-select form-select-sm" required>
                                         <option value="">-- Chọn --</option>
@@ -108,7 +108,7 @@
                                 }
                             </td>
                             <td>
-                                @if (User.IsInRole("Lecturer"))
+                                @if (User.IsInRole("Lecturer") && Model.Status != "Completed")
                                 {
                                     <input name="Students[@index].Note" value="@student.Note" maxlength="255" class="form-control form-control-sm" />
                                 }
@@ -123,10 +123,14 @@
             </table>
         </div>
         <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-            @if (User.IsInRole("Lecturer"))
+            @if (User.IsInRole("Lecturer") && Model.Status != "Completed")
             {
                 <span class="small text-muted">Lưu sẽ thêm mới hoặc cập nhật các điểm danh đã có.</span>
                 <button type="submit" class="btn btn-primary" @(Model.Students.Count == 0 ? "disabled" : null)>Lưu điểm danh</button>
+            }
+            else if (User.IsInRole("Lecturer"))
+            {
+                <span class="small text-muted">Buổi học đã hoàn tất. Điểm danh đã khóa, chỉ xem.</span>
             }
             else
             {

@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Data.Entities;
@@ -180,6 +180,12 @@ public sealed class AttendanceService : IAttendanceService
                 await transaction.RollbackAsync();
                 return Result.Fail(accessError.Value.Error, accessError.Value.Message);
             }
+            if (session.Status == "Completed")
+            {
+                await transaction.RollbackAsync();
+                return Result.Fail(ScheduleError.AttendanceSessionInvalid, "Buổi học đã hoàn tất; không thể sửa điểm danh.");
+            }
+
             var sessionError = ValidateAttendanceSession(session);
             if (sessionError != null)
             {

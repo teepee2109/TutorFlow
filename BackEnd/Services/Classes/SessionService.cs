@@ -305,8 +305,18 @@ public sealed class SessionService : ISessionService
         EndDate = entity.EndDate
     };
 
-    private static string FormatConflicts(IEnumerable<ScheduleConflictDto> conflicts) => string.Join("; ",
-        conflicts.Select(item => $"{item.Date:dd/MM/yyyy}: {item.Message}"));
+    private static string FormatConflicts(IEnumerable<ScheduleConflictDto> conflicts)
+    {
+        var groups = conflicts.GroupBy(item => item.Message)
+            .Select(group =>
+            {
+                var dates = group.Select(item => item.Date).Distinct().OrderBy(date => date).ToList();
+                var samples = string.Join(", ", dates.Take(3).Select(date => date.ToString("dd/MM/yyyy")));
+                var more = dates.Count > 3 ? $" và {dates.Count - 3} ngày khác" : string.Empty;
+                return $"{group.Key} ({dates.Count} ngày, ví dụ: {samples}{more})";
+            });
+        return string.Join("; ", groups.Take(8));
+    }
 
     private static Result FailureFromException(Exception exception, string fallbackMessage)
     {

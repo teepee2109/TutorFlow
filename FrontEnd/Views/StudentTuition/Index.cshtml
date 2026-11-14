@@ -5,18 +5,49 @@
 
 <div class="mb-4"><h2 class="fw-bold mb-1">💳 Học phí của tôi</h2><p class="text-muted mb-0">Xem các khoản phải thu và lịch sử thanh toán.</p></div>
 @if (ViewBag.ErrorMessage is string error) { <div class="alert alert-danger">@error</div> }
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
+@if (TempData["ErrorMessage"] is string submitError) { <div class="alert alert-danger">@submitError</div> }
+<div class="alert alert-info">Sau khi thanh toán cho trung tâm, gửi xác nhận tại đây. Số dư chỉ được cập nhật sau khi Grand Manager kiểm tra và duyệt.</div>
 <div class="row row-cols-1 row-cols-xl-2 g-3">
     @if (Model.Records.Count == 0) { <div class="col-12"><div class="alert alert-info">Bạn chưa có khoản học phí được phát hành.</div></div> }
     @foreach (var item in Model.Records)
     {
         <div class="col"><div class="card h-100 border-0 shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between"><strong>@item.ClassName</strong>@if (item.PaymentStatus == "Paid") { <span class="badge bg-success">Đã thanh toán</span> } else { <span class="badge bg-warning text-dark">Chưa thanh toán đủ</span> }</div>
+            <div class="card-header bg-white d-flex justify-content-between"><strong>@item.ClassName</strong>@if (item.PaymentStatus == "Paid") { <span class="badge bg-success">Đã thanh toán</span> } else if (item.PaymentStatus == "PartiallyPaid") { <span class="badge bg-info text-dark">Đã thanh toán một phần</span> } else if (item.PaymentStatus == "Overdue") { <span class="badge bg-danger">Quá hạn</span> } else { <span class="badge bg-warning text-dark">Chưa thanh toán</span> }</div>
             <div class="card-body">
                 <div class="small text-muted mb-3">Kỳ @item.PeriodFrom.ToString("dd/MM/yyyy") – @item.PeriodTo.ToString("dd/MM/yyyy") · Hạn @(item.DueDate?.ToString("dd/MM/yyyy") ?? "—")</div>
-                <dl class="row mb-0"><dt class="col-6">Số buổi có mặt</dt><dd class="col-6 text-end">@item.SessionsAttended</dd><dt class="col-6">Tổng học phí</dt><dd class="col-6 text-end">@item.TotalAmount.ToString("N0") VND</dd><dt class="col-6">Đã thanh toán</dt><dd class="col-6 text-end">@item.AmountPaid.ToString("N0") VND</dd><dt class="col-6">Còn phải thu</dt><dd class="col-6 text-end fw-bold">@item.RemainingAmount.ToString("N0") VND</dd></dl>
+                <dl class="row mb-0"><dt class="col-6">Buổi được tính phí</dt><dd class="col-6 text-end">@item.BillableSessions</dd><dt class="col-6">Tổng học phí</dt><dd class="col-6 text-end">@item.TotalAmount.ToString("N0") VND</dd><dt class="col-6">Đã thanh toán</dt><dd class="col-6 text-end">@item.AmountPaid.ToString("N0") VND</dd><dt class="col-6">Còn phải thu</dt><dd class="col-6 text-end fw-bold">@item.RemainingAmount.ToString("N0") VND</dd></dl>
                 @if (item.Payments.Count > 0)
                 {
                     <hr /><strong class="small">Lịch sử thanh toán</strong><ul class="small mb-0 mt-2">@foreach (var payment in item.Payments) { <li>@payment.PaymentDate.ToString("dd/MM/yyyy HH:mm") · @payment.AmountPaid.ToString("N0") VND · @(payment.PaymentMethod ?? "Không rõ phương thức")@(string.IsNullOrWhiteSpace(payment.ReceiptNumber) ? "" : $" · Biên lai {payment.ReceiptNumber}")</li> }</ul>
+                }
+                @{
+                    var pendingAmount = item.PaymentRequests.Where(request => request.Status == "Pending").Sum(request => request.AmountRequested);
+                    var requestableAmount = Math.Max(0m, item.RemainingAmount - pendingAmount);
+                }
+                @if (requestableAmount > 0)
+                {
+                    <hr />
+                    <strong class="small">Gửi xác nhận thanh toán</strong>
+                    <form asp-action="SubmitPaymentRequest" method="post" class="row g-2 mt-1">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="TuitionId" value="@item.TuitionId" />
+                        <div class="col-sm-4"><label class="form-label small">Số tiền</label><input name="AmountRequested" type="number" min="1" max="@requestableAmount" step="1" value="@requestableAmount" class="form-control form-control-sm" required /></div>
+                        <div class="col-sm-4"><label class="form-label small">Phương thức</label><select name="PaymentMethod" class="form-select form-select-sm" required><option value="">Chọn phương thức</option><option value="Chuyển khoản">Chuyển khoản</option><option value="Tiền mặt">Tiền mặt</option></select></div>
+                        <div class="col-sm-4"><label class="form-label small">Mã giao dịch / biên nhận</label><input name="TransferReference" maxlength="50" class="form-control form-control-sm" /></div>
+                        <div class="col-12"><label class="form-label small">Ghi chú</label><input name="Note" maxlength="255" class="form-control form-control-sm" placeholder="Ví dụ: thời gian chuyển khoản" /></div>
+                        <div class="col-12"><button class="btn btn-primary btn-sm">Gửi xác nhận</button><span class="small text-muted ms-2">Còn có thể xác nhận: @requestableAmount.ToString("N0") VND</span></div>
+                    </form>
+                }
+                @if (item.PaymentRequests.Count > 0)
+                {
+                    <hr /><strong class="small">Lịch sử xác nhận</strong>
+                    <div class="table-responsive mt-2"><table class="table table-sm align-middle mb-0"><thead><tr><th>Ngày gửi</th><th>Số tiền</th><th>Phương thức</th><th>Trạng thái</th><th>Phản hồi</th></tr></thead><tbody>
+                    @foreach (var request in item.PaymentRequests.OrderByDescending(request => request.RequestedAt))
+                    {
+                        <tr><td>@request.RequestedAt.ToString("dd/MM/yyyy HH:mm")</td><td>@request.AmountRequested.ToString("N0") VND</td><td>@request.PaymentMethod</td><td>@if (request.Status == "Pending") { <span class="badge bg-warning text-dark">Chờ duyệt</span> } else if (request.Status == "Approved") { <span class="badge bg-success">Đã duyệt</span> } else { <span class="badge bg-danger">Từ chối</span> }</td><td>@(request.ReviewNote ?? request.Note ?? "—")</td></tr>
+                    }
+                    </tbody></table></div>
                 }
             </div>
         </div></div>

@@ -23,4 +23,19 @@ public sealed class StudentTuitionController : Controller
             Records = result.Value ?? new List<TuitionRecordViewModel>()
         });
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitPaymentRequest(CreatePaymentRequestViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = "Thông tin xác nhận thanh toán chưa hợp lệ.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var result = await _apiClient.CreateMyPaymentRequestAsync(model);
+        TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Message;
+        return RedirectToAction(nameof(Index));
+    }
 }
